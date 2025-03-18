@@ -4,7 +4,7 @@ import class Foundation.JSONEncoder
 
 /// A representation of a JSON value.
 ///
-/// `JSONValue` provides a type-safe way to work with JSON data in Swift. It can represent
+/// Use `JSONValue` to work with JSON data in Swift in a type-safe way. This type can represent
 /// all standard JSON types: null, boolean, number (integer or floating-point),
 /// string, array, and object.
 ///
@@ -215,12 +215,6 @@ extension JSONValue: CustomStringConvertible {
 
 extension JSONValue: ExpressibleByNilLiteral {
     /// Creates a null JSON value.
-    ///
-    /// This initializer allows you to use `nil` literals to create `.null` values.
-    ///
-    /// ```swift
-    /// let nullValue: JSONValue = nil
-    /// ```
     public init(nilLiteral: ()) {
         self = .null
     }
@@ -230,13 +224,6 @@ extension JSONValue: ExpressibleByNilLiteral {
 
 extension JSONValue: ExpressibleByBooleanLiteral {
     /// Creates a boolean JSON value.
-    ///
-    /// This initializer allows you to use boolean literals to create `.bool` values.
-    ///
-    /// ```swift
-    /// let trueValue: JSONValue = true
-    /// let falseValue: JSONValue = false
-    /// ```
     public init(booleanLiteral value: Bool) {
         self = .bool(value)
     }
@@ -246,12 +233,6 @@ extension JSONValue: ExpressibleByBooleanLiteral {
 
 extension JSONValue: ExpressibleByIntegerLiteral {
     /// Creates an integer JSON value.
-    ///
-    /// This initializer allows you to use integer literals to create `.int` values.
-    ///
-    /// ```swift
-    /// let intValue: JSONValue = 42
-    /// ```
     public init(integerLiteral value: Int) {
         self = .int(value)
     }
@@ -261,12 +242,6 @@ extension JSONValue: ExpressibleByIntegerLiteral {
 
 extension JSONValue: ExpressibleByFloatLiteral {
     /// Creates a floating-point JSON value.
-    ///
-    /// This initializer allows you to use floating-point literals to create `.double` values.
-    ///
-    /// ```swift
-    /// let doubleValue: JSONValue = 3.14159
-    /// ```
     public init(floatLiteral value: Double) {
         self = .double(value)
     }
@@ -276,12 +251,6 @@ extension JSONValue: ExpressibleByFloatLiteral {
 
 extension JSONValue: ExpressibleByStringLiteral {
     /// Creates a string JSON value.
-    ///
-    /// This initializer allows you to use string literals to create `.string` values.
-    ///
-    /// ```swift
-    /// let stringValue: JSONValue = "hello world"
-    /// ```
     public init(stringLiteral value: String) {
         self = .string(value)
     }
@@ -291,12 +260,6 @@ extension JSONValue: ExpressibleByStringLiteral {
 
 extension JSONValue: ExpressibleByArrayLiteral {
     /// Creates an array JSON value.
-    ///
-    /// This initializer allows you to use array literals to create `.array` values.
-    ///
-    /// ```swift
-    /// let arrayValue: JSONValue = [1, "two", true]
-    /// ```
     public init(arrayLiteral elements: JSONValue...) {
         self = .array(elements)
     }
@@ -306,12 +269,6 @@ extension JSONValue: ExpressibleByArrayLiteral {
 
 extension JSONValue: ExpressibleByDictionaryLiteral {
     /// Creates an object JSON value.
-    ///
-    /// This initializer allows you to use dictionary literals to create `.object` values.
-    ///
-    /// ```swift
-    /// let objectValue: JSONValue = ["name": "John", "age": 30]
-    /// ```
     public init(dictionaryLiteral elements: (String, JSONValue)...) {
         var dictionary: [String: Value] = [:]
         for (key, value) in elements {
@@ -324,7 +281,7 @@ extension JSONValue: ExpressibleByDictionaryLiteral {
 // MARK: - ExpressibleByStringInterpolation
 
 extension JSONValue: ExpressibleByStringInterpolation {
-    /// Implementation of string interpolation for creating string JSON values.
+    /// Implementation of string interpolation for JSONValue strings.
     public struct StringInterpolation: StringInterpolationProtocol {
         var stringValue: String
 
@@ -343,14 +300,6 @@ extension JSONValue: ExpressibleByStringInterpolation {
     }
 
     /// Creates a string JSON value from string interpolation.
-    ///
-    /// This initializer allows you to use string interpolation to create `.string` values.
-    ///
-    /// ```swift
-    /// let name = "John"
-    /// let age = 30
-    /// let message: JSONValue = "Name: \(name), Age: \(age)"
-    /// ```
     public init(stringInterpolation: StringInterpolation) {
         self = .string(stringInterpolation.stringValue)
     }
@@ -359,26 +308,17 @@ extension JSONValue: ExpressibleByStringInterpolation {
 // MARK: - Standard Library Type Extensions
 
 extension Bool {
-    /// Creates a boolean value from a `JSONValue` instance.
-    ///
-    /// In strict mode, only `.bool` values are converted. In non-strict mode, the following conversions are supported:
-    /// - Integers: `1` is `true`, `0` is `false`
-    /// - Doubles: `1.0` is `true`, `0.0` is `false`
-    /// - Strings (lowercase only):
-    ///   - `true`: "true", "t", "yes", "y", "on", "1"
-    ///   - `false`: "false", "f", "no", "n", "off", "0"
+    /// Creates a boolean value from a JSON value.
     ///
     /// - Parameters:
-    ///   - value: The `JSONValue` to convert
-    ///   - strict: When `true`, only converts from `.bool` values. Defaults to `true`
-    /// - Returns: A boolean value if conversion is possible, `nil` otherwise
+    ///   - value: The JSON value to convert
+    ///   - strict: When `true`, only converts from boolean values. Defaults to `true`
     ///
-    /// - Example:
-    ///   ```swift
-    ///   Bool(JSONValue.bool(true)) // Returns true
-    ///   Bool(JSONValue.int(1), strict: false) // Returns true
-    ///   Bool(JSONValue.string("yes"), strict: false) // Returns true
-    ///   ```
+    /// In non-strict mode, converts:
+    /// - Integers: `1` to `true`, `0` to `false`
+    /// - Doubles: `1.0` to `true`, `0.0` to `false`
+    /// - Strings (case-insensitive): "true", "yes", "on", "1" to `true`;
+    ///   "false", "no", "off", "0" to `false`
     public init?(_ value: JSONValue, strict: Bool = true) {
         switch value {
         case .bool(let b):
@@ -411,24 +351,15 @@ extension Bool {
 }
 
 extension Int {
-    /// Creates an integer value from a `JSONValue` instance.
-    ///
-    /// In strict mode, only `.int` values are converted. In non-strict mode, the following conversions are supported:
-    /// - Doubles: Converted if they can be represented exactly as integers
-    /// - Strings: Parsed if they contain a valid integer representation
+    /// Creates an integer value from a JSON value.
     ///
     /// - Parameters:
-    ///   - value: The `JSONValue` to convert
-    ///   - strict: When `true`, only converts from `.int` values. Defaults to `true`
-    /// - Returns: An integer value if conversion is possible, `nil` otherwise
+    ///   - value: The JSON value to convert
+    ///   - strict: When `true`, only converts from integer values. Defaults to `true`
     ///
-    /// - Example:
-    ///   ```swift
-    ///   Int(JSONValue.int(42)) // Returns 42
-    ///   Int(JSONValue.double(42.0), strict: false) // Returns 42
-    ///   Int(JSONValue.string("42"), strict: false) // Returns 42
-    ///   Int(JSONValue.double(42.5), strict: false) // Returns nil
-    ///   ```
+    /// In non-strict mode, converts:
+    /// - Doubles that can be represented exactly as integers
+    /// - Strings that contain a valid integer representation
     public init?(_ value: JSONValue, strict: Bool = true) {
         switch value {
         case .int(let i):
@@ -446,23 +377,13 @@ extension Int {
 }
 
 extension Double {
-    /// Creates a double value from a `JSONValue` instance.
-    ///
-    /// In strict mode, converts from `.double` and `.int` values. In non-strict mode, the following conversions are supported:
-    /// - Integers: Converted to their double representation
-    /// - Strings: Parsed if they contain a valid floating-point representation
+    /// Creates a double value from a JSON value.
     ///
     /// - Parameters:
-    ///   - value: The `JSONValue` to convert
-    ///   - strict: When `true`, only converts from `.double` and `.int` values. Defaults to `true`
-    /// - Returns: A double value if conversion is possible, `nil` otherwise
+    ///   - value: The JSON value to convert
+    ///   - strict: When `true`, only converts from number values. Defaults to `true`
     ///
-    /// - Example:
-    ///   ```swift
-    ///   Double(JSONValue.double(42.5)) // Returns 42.5
-    ///   Double(JSONValue.int(42)) // Returns 42.0
-    ///   Double(JSONValue.string("42.5"), strict: false) // Returns 42.5
-    ///   ```
+    /// In non-strict mode, also converts strings containing valid floating-point numbers.
     public init?(_ value: JSONValue, strict: Bool = true) {
         switch value {
         case .double(let d):
@@ -479,24 +400,13 @@ extension Double {
 }
 
 extension String {
-    /// Creates a string value from a `Value` instance.
-    ///
-    /// In strict mode, only `.string` values are converted. In non-strict mode, the following conversions are supported:
-    /// - Integers: Converted to their string representation
-    /// - Doubles: Converted to their string representation
-    /// - Booleans: Converted to "true" or "false"
+    /// Creates a string value from a JSON value.
     ///
     /// - Parameters:
-    ///   - value: The `Value` to convert
-    ///   - strict: When `true`, only converts from `.string` values. Defaults to `true`
-    /// - Returns: A string value if conversion is possible, `nil` otherwise
+    ///   - value: The JSON value to convert
+    ///   - strict: When `true`, only converts from string values. Defaults to `true`
     ///
-    /// - Example:
-    ///   ```swift
-    ///   String(Value.string("hello")) // Returns "hello"
-    ///   String(Value.int(42), strict: false) // Returns "42"
-    ///   String(Value.bool(true), strict: false) // Returns "true"
-    ///   ```
+    /// In non-strict mode, converts any value to its string representation.
     public init?(_ value: JSONValue, strict: Bool = true) {
         switch value {
         case .string(let s):
