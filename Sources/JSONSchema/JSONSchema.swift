@@ -123,14 +123,18 @@ extension JSONSchema: Codable {
     }
 
     public func encode(to encoder: Encoder) throws {
-        if self == .any {
-            var singleValueContainer = encoder.singleValueContainer()
-            try singleValueContainer.encode(true)
-            return
-        }
-
-        var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
+        case .any:
+            var container = encoder.singleValueContainer()
+            try container.encode(true)
+
+        case .not(.any):
+            var container = encoder.singleValueContainer()
+            try container.encode(false)
+
+        case .empty:
+            _ = encoder.container(keyedBy: CodingKeys.self)
+
         case let .object(
             title,
             description,
@@ -143,6 +147,7 @@ extension JSONSchema: Codable {
             required,
             additionalProperties
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("object", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -172,6 +177,7 @@ extension JSONSchema: Codable {
             maxItems,
             uniqueItems
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("array", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -199,6 +205,7 @@ extension JSONSchema: Codable {
             pattern,
             format
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("string", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -227,6 +234,7 @@ extension JSONSchema: Codable {
             exclusiveMaximum,
             multipleOf
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("number", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -256,6 +264,7 @@ extension JSONSchema: Codable {
             exclusiveMaximum,
             multipleOf
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("integer", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -276,6 +285,7 @@ extension JSONSchema: Codable {
             description,
             `default`
         ):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("boolean", forKey: .type)
 
             try encodeIfPresent(title, forKey: .title, into: &container)
@@ -283,25 +293,28 @@ extension JSONSchema: Codable {
             try encodeIfPresent(`default`, forKey: .default, into: &container)
 
         case .null:
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode("null", forKey: .type)
 
         case .reference(let ref):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(ref, forKey: .ref)
 
         case .anyOf(let schemas):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(schemas, forKey: .anyOf)
 
         case .allOf(let schemas):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(schemas, forKey: .allOf)
 
         case .oneOf(let schemas):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(schemas, forKey: .oneOf)
 
         case .not(let schema):
+            var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(schema, forKey: .not)
-
-        case .empty, .any:
-            break
         }
     }
 
