@@ -154,11 +154,6 @@ let decoder = JSONDecoder()
 let decodedSchema = try decoder.decode(JSONSchema.self, from: jsonData)
 ```
 
-# JSONSchema
-
-A Swift library for working with JSON Schema definitions —
-_especially_ for declaring schemas for AI tool use.
-
 ## Motivation
 
 There are a few other libraries out there for working with JSON Schema, 
