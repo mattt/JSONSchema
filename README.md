@@ -1,11 +1,11 @@
 # JSONSchema
 
 A Swift library for working with JSON Schema definitions —
-_especially_ for declaring schemas for AI tool use.
+especially for declaring schemas for AI tool use.
 
 This library implements core features of the 
 [JSON Schema](https://json-schema.org/) standard, 
-specifically targeting compatibility with **draft-2020-12** version.
+targeting the **draft-2020-12** version.
 
 🙅‍♀️ This library specifically **does not** support the following features:
 
@@ -156,16 +156,16 @@ let decodedSchema = try decoder.decode(JSONSchema.self, from: jsonData)
 
 ## Motivation
 
-There are a few other libraries out there for working with JSON Schema, 
+There are a few other packages out there for working with JSON Schema, 
 but they did more than I needed.
 
-This library focuses solely on defining and serializing JSON Schema structures 
-with a clean, ergonomic API.
+This library focuses solely on defining and serializing JSON Schema values 
+with a clean, ergonomic API. <br/>
 _That's it_.
 
-The implementation is deliberately minimal: 
-two files under 1,000 lines of code.
-At its core is one big `JSONSchema` enumerations 
+The [implementation](/Sources/JSONSchema/) is deliberately minimal: 
+two files, ~1,000 lines of code total.
+At its core is one big `JSONSchema` enumerations
 with associated values for most of the JSON Schema keywords you might want.
 No result builders, property wrappers, macros, or dynamic member lookup —
 just old-school Swift with choice conformance to `ExpressibleBy___Literal` 💅
