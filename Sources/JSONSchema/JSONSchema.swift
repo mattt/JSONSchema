@@ -8,7 +8,7 @@
 /// ```swift
 /// let schema: JSONSchema = .object(
 ///     properties: [
-///         "name": .string(minLength: 2),
+///         "name": .string(),
 ///         "age": .integer(minimum: 0),
 ///         "email": .string(format: .email)
 ///     ],
