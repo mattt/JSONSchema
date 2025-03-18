@@ -12,7 +12,7 @@ import Testing
         enum: [["name": "Option 1"], ["name": "Option 2"]],
         const: ["type": "constant"],
         properties: [
-            "name": .string(minLength: 2),
+            "name": .string(),
             "age": .integer(minimum: 0, maximum: 120),
             "address": .object(
                 properties: [
@@ -63,7 +63,7 @@ import Testing
 
 @Test func testObjectSchemaWithLiteral() throws {
     let schema: JSONSchema = [
-        "name": .string(minLength: 2),
+        "name": .string(),
         "age": .integer(minimum: 0, maximum: 120),
         "address": [
             "street": .string(),

@@ -1,6 +1,38 @@
-/// A type that represents a JSON Schema definition
+/// A type that represents a JSON Schema definition.
+///
+/// Use JSONSchema to create, manipulate, and encode/decode JSON Schema documents.
+/// This type supports all major schema types and validation keywords from the
+/// JSON Schema specification.
+///
+/// ## Example
+/// ```swift
+/// let schema: JSONSchema = .object(
+///     properties: [
+///         "name": .string(),
+///         "age": .integer(minimum: 0),
+///         "email": .string(format: .email)
+///     ],
+///     required: ["name", "email"]
+/// )
+/// ```
 @frozen public indirect enum JSONSchema: Hashable, Sendable {
     // Schema types
+
+    /// A schema for JSON objects.
+    ///
+    /// Use this case to define the structure of objects, including properties,
+    /// required fields, and rules for additional properties.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the object.
+    ///   - description: A description of the object's purpose.
+    ///   - default: A default object value.
+    ///   - examples: Example objects that are valid.
+    ///   - enum: Allowed object values.
+    ///   - const: A specific object this schema must equal.
+    ///   - properties: Property names mapped to their schema definitions.
+    ///   - required: Property names that are required.
+    ///   - additionalProperties: Rules for properties not defined in `properties`.
     case object(
         title: String? = nil,
         description: String? = nil,
@@ -13,8 +45,26 @@
         required: [String] = [],
         additionalProperties: AdditionalProperties? = nil
     )
+
+    /// Creates an empty object schema with default settings.
     static var object: JSONSchema { .object() }
 
+    /// A schema for JSON arrays.
+    ///
+    /// Use this case to define validation rules for arrays, including item schemas,
+    /// length constraints, and uniqueness requirements.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the array.
+    ///   - description: A description of the array's purpose.
+    ///   - default: A default array value.
+    ///   - examples: Example arrays that are valid.
+    ///   - enum: Allowed array values.
+    ///   - const: A specific array this schema must equal.
+    ///   - items: The schema all array items must validate against.
+    ///   - minItems: The minimum number of items required.
+    ///   - maxItems: The maximum number of items allowed.
+    ///   - uniqueItems: Whether items must be unique.
     case array(
         title: String? = nil,
         description: String? = nil,
@@ -28,8 +78,26 @@
         maxItems: Int? = nil,
         uniqueItems: Bool? = nil
     )
+
+    /// Creates an empty array schema with default settings.
     static var array: JSONSchema { .array() }
 
+    /// A schema for JSON strings.
+    ///
+    /// Use this case to define validation rules for strings, including length
+    /// constraints, patterns, and format validation.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the string.
+    ///   - description: A description of the string's purpose.
+    ///   - default: A default string value.
+    ///   - examples: Example strings that are valid.
+    ///   - enum: Allowed string values.
+    ///   - const: A specific string this schema must equal.
+    ///   - minLength: The minimum string length.
+    ///   - maxLength: The maximum string length.
+    ///   - pattern: A regex pattern the string must match.
+    ///   - format: A predefined format the string must conform to.
     case string(
         title: String? = nil,
         description: String? = nil,
@@ -43,8 +111,27 @@
         pattern: String? = nil,
         format: StringFormat? = nil
     )
+
+    /// Creates an empty string schema with default settings.
     static var string: JSONSchema { .string() }
 
+    /// A schema for JSON numbers with decimal points.
+    ///
+    /// Use this case to define validation rules for floating-point numbers,
+    /// including range constraints and multiple-of validation.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the number.
+    ///   - description: A description of the number's purpose.
+    ///   - default: A default number value.
+    ///   - examples: Example numbers that are valid.
+    ///   - enum: Allowed number values.
+    ///   - const: A specific number this schema must equal.
+    ///   - minimum: The minimum value (inclusive).
+    ///   - maximum: The maximum value (inclusive).
+    ///   - exclusiveMinimum: The minimum value (exclusive).
+    ///   - exclusiveMaximum: The maximum value (exclusive).
+    ///   - multipleOf: A value that the number must be a multiple of.
     case number(
         title: String? = nil,
         description: String? = nil,
@@ -59,8 +146,27 @@
         exclusiveMaximum: Double? = nil,
         multipleOf: Double? = nil
     )
+
+    /// Creates an empty number schema with default settings.
     static var number: JSONSchema { .number() }
 
+    /// A schema for JSON integers.
+    ///
+    /// Use this case to define validation rules for integers,
+    /// including range constraints and multiple-of validation.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the integer.
+    ///   - description: A description of the integer's purpose.
+    ///   - default: A default integer value.
+    ///   - examples: Example integers that are valid.
+    ///   - enum: Allowed integer values.
+    ///   - const: A specific integer this schema must equal.
+    ///   - minimum: The minimum value (inclusive).
+    ///   - maximum: The maximum value (inclusive).
+    ///   - exclusiveMinimum: The minimum value (exclusive).
+    ///   - exclusiveMaximum: The maximum value (exclusive).
+    ///   - multipleOf: A value that the integer must be a multiple of.
     case integer(
         title: String? = nil,
         description: String? = nil,
@@ -75,26 +181,72 @@
         exclusiveMaximum: Int? = nil,
         multipleOf: Int? = nil
     )
+
+    /// Creates an empty integer schema with default settings.
     static var integer: JSONSchema { .integer() }
 
+    /// A schema for JSON boolean values.
+    ///
+    /// Use this case to define a schema that validates boolean true/false values.
+    ///
+    /// - Parameters:
+    ///   - title: A title describing the boolean.
+    ///   - description: A description of the boolean's purpose.
+    ///   - default: A default boolean value.
     case boolean(
         title: String? = nil,
         description: String? = nil,
         `default`: JSONValue? = nil
     )
+
+    /// Creates an empty boolean schema with default settings.
     static var boolean: JSONSchema { .boolean() }
 
+    /// A schema that validates only the JSON null value.
     case null
 
     // Special schema types
+
+    /// A reference to another schema definition.
+    ///
+    /// Use this case to reference a schema defined elsewhere, typically using
+    /// a JSON Pointer like "#/definitions/address".
     case reference(String)
+
+    /// A schema requiring validation against any of the provided schemas.
+    ///
+    /// This represents a logical OR operation. The JSON value must validate
+    /// against at least one of the schemas.
     case anyOf([JSONSchema])
+
+    /// A schema requiring validation against all of the provided schemas.
+    ///
+    /// This represents a logical AND operation. The JSON value must validate
+    /// against all of the schemas.
     case allOf([JSONSchema])
+
+    /// A schema requiring validation against exactly one of the provided schemas.
+    ///
+    /// This represents a logical XOR operation. The JSON value must validate
+    /// against exactly one of the schemas.
     case oneOf([JSONSchema])
+
+    /// A schema requiring validation to fail against the provided schema.
+    ///
+    /// This represents a logical NOT operation. The JSON value must not
+    /// validate against the schema.
     case not(JSONSchema)
 
     // Simple schemas
+
+    /// An empty schema that imposes no constraints.
+    ///
+    /// This is equivalent to an empty JSON object `{}` and validates any instance.
     case empty
+
+    /// A schema that accepts any valid JSON value.
+    ///
+    /// This is equivalent to the boolean value `true` in JSON Schema.
     case any
 }
 
@@ -558,25 +710,72 @@ extension JSONSchema: ExpressibleByNilLiteral {
 
 // MARK: -
 
+/// Standard format options for string values in JSON Schema.
+///
+/// This enumeration includes all standard string formats defined in the JSON Schema
+/// specification, such as date-time, email, URI, and UUID. Use the `custom` case to
+/// define your own formats.
+///
+/// Use these formats with the `format` parameter in a string schema to validate
+/// string values according to specific patterns.
 public enum StringFormat: Hashable, Sendable {
+    /// String must be a valid RFC 3339 date-time.
     case dateTime
+
+    /// String must be a valid RFC 3339 full-date.
     case date
+
+    /// String must be a valid RFC 3339 time.
     case time
+
+    /// String must be a valid RFC 3339 duration.
     case duration
+
+    /// String must be a valid email address.
     case email
+
+    /// String must be a valid internationalized email address.
     case idnEmail
+
+    /// String must be a valid hostname per RFC 1034.
     case hostname
+
+    /// String must be a valid internationalized hostname.
     case idnHostname
+
+    /// String must be a valid IPv4 address.
     case ipv4
+
+    /// String must be a valid IPv6 address.
     case ipv6
+
+    /// String must be a valid URI per RFC 3986.
     case uri
+
+    /// String must be a valid URI reference per RFC 3986.
     case uriReference
+
+    /// String must be a valid IRI reference.
     case iriReference
+
+    /// String must be a valid URI template per RFC 6570.
     case uriTemplate
+
+    /// String must be a valid JSON Pointer per RFC 6901.
     case jsonPointer
+
+    /// String must be a valid relative JSON Pointer.
     case relativeJsonPointer
+
+    /// String must be a valid regular expression.
     case regex
+
+    /// String must be a valid UUID per RFC 4122.
     case uuid
+
+    /// String must conform to a custom format.
+    ///
+    /// - Parameter format: The name of the custom format.
     case custom(String)
 }
 
@@ -664,8 +863,29 @@ extension StringFormat: ExpressibleByStringLiteral {
 
 // MARK: -
 
+/// Configuration for additional properties in a JSON Schema object.
+///
+/// In JSON Schema, `additionalProperties` can be a boolean or a schema:
+/// - A boolean: `true` allows any additional properties (default),
+///   `false` prohibits additional properties.
+/// - A schema: Defines validation rules for additional properties.
+///
+/// ## Examples
+/// ```swift
+/// // No additional properties allowed
+/// .object(properties: ["name": .string()], additionalProperties: .boolean(false))
+///
+/// // Additional properties must be integers
+/// .object(properties: ["name": .string()], additionalProperties: .schema(.integer()))
+/// ```
 public enum AdditionalProperties: Hashable, Sendable {
+    /// Controls whether additional properties are allowed.
+    ///
+    /// - `true`: Additional properties are allowed (default behavior)
+    /// - `false`: No additional properties are allowed
     case boolean(Bool)
+
+    /// Specifies a schema that additional properties must validate against.
     case schema(JSONSchema)
 }
 
