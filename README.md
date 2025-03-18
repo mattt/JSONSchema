@@ -1,6 +1,19 @@
 # JSONSchema
 
-A Swift library for working with JSON Schema definitions.
+A Swift library for working with JSON Schema definitions —
+especially for declaring schemas for AI tool use.
+
+This library implements core features of the 
+[JSON Schema](https://json-schema.org/) standard, 
+targeting the **draft-2020-12** version.
+
+🙅‍♀️ This library specifically **does not** support the following features:
+
+- Document validation
+- Reference resolution
+- Conditional validation keywords, like 
+  `dependentRequired`, `dependentSchemas`, and `if`/`then`/`else`
+- Custom vocabularies and meta-schemas
 
 ## Requirements
 
@@ -16,7 +29,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/loopwork-ai/JSONSchema.git", from: "0.1.0")
+    .package(url: "https://github.com/loopwork-ai/JSONSchema.git", from: "1.0.0")
 ]
 ```
 
@@ -29,29 +42,52 @@ Create JSON Schema definitions with Swift's expressive dictionary literal syntax
 ```swift
 import JSONSchema
 
-// Simple object schema with properties
-let personSchema: JSONSchema = [
-    "name": .string(minLength: 2),
-    "age": .integer(minimum: 0, maximum: 120),
-    "email": .string(format: .email)
-]
+// Example of defining a schema for an AI tool
+let getWeatherSchema: JSONSchema = .object(
+    properties: [
+        "location": .string(
+            description: "The city and state/country, e.g. 'San Francisco, CA'",
+            examples: ["London, UK", "Tokyo, Japan"]
+        ),
+        "unit": .string(
+            description: "The temperature unit to use",
+            enum: ["celsius", "fahrenheit"],
+            default: "celsius"
+        ),
+        "include_forecast": .boolean(
+            description: "Whether to include the weather forecast",
+            default: false
+        )
+    ],
+    required: ["location"]
+)
 
-// Nested object schema
+// Complex schema with nested objects
 let addressSchema: JSONSchema = [
     "street": .string(),
     "city": .string(),
     "zip": .string(pattern: "^[0-9]{5}$")
 ]
 
-// Complex schema with nested objects
-let userSchema: JSONSchema = [
+let orderSchema: JSONSchema = [
     "name": .string(minLength: 2, maxLength: 100),
     "email": .string(format: .email),
     "address": addressSchema,
     "tags": .array(items: .string()),
     "status": .oneOf([
         .string(enum: ["active", "inactive", "pending"]),
-        .object(properties: ["code": .integer(), "message": .string()])
+        .object(
+            properties: [
+                "error": .boolean(const: true),
+                "code": .integer(enum: [400, 401, 403, 404]),
+                "message": .string(
+                    description: "Detailed error message",
+                    examples: ["Invalid credentials", "Not found"]
+                )
+            ],
+            required: ["error"],
+            additionalProperties: false
+        )
     ])
 ]
 ```
@@ -101,7 +137,7 @@ let schema: JSONSchema = .object(
     title: "Person",
     description: "A person schema",
     properties: [
-        "name": .string(minLength: 2),
+        "name": .string(),
         "age": .integer(minimum: 0)
     ],
     required: ["name"]
@@ -117,6 +153,22 @@ print(String(data: jsonData, encoding: .utf8)!)
 let decoder = JSONDecoder()
 let decodedSchema = try decoder.decode(JSONSchema.self, from: jsonData)
 ```
+
+## Motivation
+
+There are a few other packages out there for working with JSON Schema, 
+but they did more than I needed.
+
+This library focuses solely on defining and serializing JSON Schema values 
+with a clean, ergonomic API. <br/>
+_That's it_.
+
+The [implementation](/Sources/JSONSchema/) is deliberately minimal: 
+two files, ~1,000 lines of code total.
+At its core is one big `JSONSchema` enumerations
+with associated values for most of the JSON Schema keywords you might want.
+No result builders, property wrappers, macros, or dynamic member lookup —
+just old-school Swift with choice conformance to `ExpressibleBy___Literal` 💅
 
 ## License
 
