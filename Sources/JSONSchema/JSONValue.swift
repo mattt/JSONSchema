@@ -422,3 +422,58 @@ extension String {
         }
     }
 }
+
+// MARK: - Schema Compatibility
+
+extension JSONValue {
+    /// Checks if the basic type of this JSON value matches the type expected by a JSON schema.
+    ///
+    /// This method primarily checks for type alignment (e.g., JSON object vs. schema object type).
+    /// It does not perform deep validation of constraints like `minimum`, `maxLength`, etc.
+    /// For composite schemas (`anyOf`, `allOf`, `oneOf`, `not`), references, `any`, or `empty`,
+    /// this method generally returns `true`, as compatibility depends on further evaluation.
+    ///
+    /// - Parameters:
+    ///   - schema: The `JSONSchema` to check compatibility against.
+    ///   - strict: If `true` (default), requires exact numeric type matching (`.int` for `.integer`,
+    ///     `.double` for `.number`). If `false`, allows `.int` to be compatible with `.number`.
+    /// - Returns: `true` if the value's basic type is compatible with the schema's expected type, `false` otherwise.
+    public func isCompatible(with schema: JSONSchema, strict: Bool = true) -> Bool {
+        switch schema {
+        case .object:
+            // Check if the JSONValue is an object
+            guard case .object = self else { return false }
+            return true
+        case .array:
+            // Check if the JSONValue is an array
+            guard case .array = self else { return false }
+            return true
+        case .string:
+            // Check if the JSONValue is a string
+            guard case .string = self else { return false }
+            return true
+        case .number:
+            // Compatible if it's a double, or if not strict and it's an int
+            switch self {
+            case .double: return true
+            case .int: return !strict
+            default: return false
+            }
+        case .integer:
+            // Check if the JSONValue is an int
+            guard case .int = self else { return false }
+            return true
+        case .boolean:
+            // Check if the JSONValue is a bool
+            guard case .bool = self else { return false }
+            return true
+        case .null:
+            // Check if the JSONValue is null
+            return self == .null
+        case .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            // Compatibility for these types depends on deeper validation or context.
+            // Assume basic type compatibility is met, deferring to full validation.
+            return true
+        }
+    }
+}
