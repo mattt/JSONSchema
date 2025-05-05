@@ -353,22 +353,22 @@ extension JSONSchema {
     /// The name of the schema type.
     public var typeName: String {
         switch self {
-        case .object: return "Object"
-        case .array: return "Array"
-        case .string: return "String"
-        case .number: return "Number"
-        case .integer: return "Integer"
-        case .boolean: return "Boolean"
-        case .null: return "Null"
-        case .reference: return "Reference"
-        case .anyOf: return "AnyOf"
-        case .allOf: return "AllOf"
-        case .oneOf: return "OneOf"
-        case .not: return "Not"
-        case .empty: return "Empty"
-        case .any: return "Any"
+        case .object: return "object"
+        case .array: return "array"
+        case .string: return "string"
+        case .number: return "number"
+        case .integer: return "integer"
+        case .boolean: return "boolean"
+        case .null: return "null"
+        case .reference: return "reference"
+        case .anyOf: return "anyOf"
+        case .allOf: return "allOf"
+        case .oneOf: return "oneOf"
+        case .not: return "not"
+        case .empty: return "empty"
+        case .any: return "any"
         @unknown default:
-            return "Unknown"
+            return "unknown"
         }
     }
 
