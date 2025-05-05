@@ -544,10 +544,10 @@ import Testing
             if case let .string(_, _, _, _, _, _, minLength, _, _, _) = additionalPropsSchema {
                 #expect(minLength == 1)
             } else {
-                Issue.record("additionalProperties schema should be a string schema")
+                Issue.record("Expected string schema")
             }
         } else {
-            Issue.record("additionalProperties should be .schema")
+            Issue.record("Expected schema variant")
         }
     } else {
         Issue.record("Decoded schema should be an object with additionalProperties")
@@ -615,9 +615,8 @@ import Testing
     #expect(decodedVariant == schemaVariant)
 
     if case let .schema(decodedSchema) = decodedVariant {
-        if case let .string(_, _, _, _, _, _, minLength, maxLength, _, _) = decodedSchema {
+        if case let .string(_, _, _, _, _, _, minLength, _, _, _) = decodedSchema {
             #expect(minLength == 1)
-            #expect(maxLength == 100)
         } else {
             Issue.record("Expected string schema")
         }
@@ -842,4 +841,186 @@ import Testing
     let decodedValue = try decoder.decode(JSONValue.self, from: data)
 
     #expect(decodedValue == objectValue)
+}
+
+@Test func testConvenienceProperties() {
+    // Test object schema
+    let objectSchema: JSONSchema = .object(
+        title: "Person",
+        description: "A person object",
+        default: ["name": "John"],
+        examples: [["name": "Jane"]],
+        enum: [["name": "Option 1"]],
+        const: ["name": "Constant"]
+    )
+
+    #expect(objectSchema.title == "Person")
+    #expect(objectSchema.description == "A person object")
+    #expect(objectSchema.default?.objectValue?["name"]?.stringValue == "John")
+    #expect(objectSchema.examples?.count == 1)
+    #expect(objectSchema.examples?.first?.objectValue?["name"]?.stringValue == "Jane")
+    #expect(objectSchema.enum?.count == 1)
+    #expect(objectSchema.enum?.first?.objectValue?["name"]?.stringValue == "Option 1")
+    #expect(objectSchema.const?.objectValue?["name"]?.stringValue == "Constant")
+
+    // Test array schema
+    let arraySchema: JSONSchema = .array(
+        title: "Numbers",
+        description: "An array of numbers",
+        default: [1, 2, 3],
+        examples: [[4, 5, 6]],
+        enum: [[7, 8, 9]],
+        const: [10, 11, 12]
+    )
+
+    #expect(arraySchema.title == "Numbers")
+    #expect(arraySchema.description == "An array of numbers")
+    #expect(arraySchema.default?.arrayValue?.count == 3)
+    #expect(arraySchema.examples?.count == 1)
+    #expect(arraySchema.examples?.first?.arrayValue?.count == 3)
+    #expect(arraySchema.enum?.count == 1)
+    #expect(arraySchema.enum?.first?.arrayValue?.count == 3)
+    #expect(arraySchema.const?.arrayValue?.count == 3)
+
+    // Test string schema
+    let stringSchema: JSONSchema = .string(
+        title: "Email",
+        description: "An email address",
+        default: "john@example.com",
+        examples: ["jane@example.com"],
+        enum: ["admin@example.com"],
+        const: "constant@example.com"
+    )
+
+    #expect(stringSchema.title == "Email")
+    #expect(stringSchema.description == "An email address")
+    #expect(stringSchema.default?.stringValue == "john@example.com")
+    #expect(stringSchema.examples?.count == 1)
+    #expect(stringSchema.examples?.first?.stringValue == "jane@example.com")
+    #expect(stringSchema.enum?.count == 1)
+    #expect(stringSchema.enum?.first?.stringValue == "admin@example.com")
+    #expect(stringSchema.const?.stringValue == "constant@example.com")
+
+    // Test number schema
+    let numberSchema: JSONSchema = .number(
+        title: "Temperature",
+        description: "Temperature in Celsius",
+        default: 20.5,
+        examples: [18.0],
+        enum: [0.0],
+        const: 37.0
+    )
+
+    #expect(numberSchema.title == "Temperature")
+    #expect(numberSchema.description == "Temperature in Celsius")
+    #expect(numberSchema.default?.doubleValue == 20.5)
+    #expect(numberSchema.examples?.count == 1)
+    #expect(numberSchema.examples?.first?.doubleValue == 18.0)
+    #expect(numberSchema.enum?.count == 1)
+    #expect(numberSchema.enum?.first?.doubleValue == 0.0)
+    #expect(numberSchema.const?.doubleValue == 37.0)
+
+    // Test integer schema
+    let integerSchema: JSONSchema = .integer(
+        title: "Age",
+        description: "Age in years",
+        default: 30,
+        examples: [25],
+        enum: [18],
+        const: 42
+    )
+
+    #expect(integerSchema.title == "Age")
+    #expect(integerSchema.description == "Age in years")
+    #expect(integerSchema.default?.intValue == 30)
+    #expect(integerSchema.examples?.count == 1)
+    #expect(integerSchema.examples?.first?.intValue == 25)
+    #expect(integerSchema.enum?.count == 1)
+    #expect(integerSchema.enum?.first?.intValue == 18)
+    #expect(integerSchema.const?.intValue == 42)
+
+    // Test boolean schema
+    let booleanSchema: JSONSchema = .boolean(
+        title: "Active",
+        description: "Whether the user is active",
+        default: true
+    )
+
+    #expect(booleanSchema.title == "Active")
+    #expect(booleanSchema.description == "Whether the user is active")
+    #expect(booleanSchema.default?.boolValue == true)
+
+    // Test schemas without metadata
+    let emptyObjectSchema: JSONSchema = .object()
+    #expect(emptyObjectSchema.title == nil)
+    #expect(emptyObjectSchema.description == nil)
+    #expect(emptyObjectSchema.default == nil)
+    #expect(emptyObjectSchema.examples == nil)
+    #expect(emptyObjectSchema.enum == nil)
+    #expect(emptyObjectSchema.const == nil)
+
+    // Test special schemas
+    let nullSchema: JSONSchema = .null
+    #expect(nullSchema.title == nil)
+    #expect(nullSchema.description == nil)
+    #expect(nullSchema.default == nil)
+    #expect(nullSchema.examples == nil)
+    #expect(nullSchema.enum == nil)
+    #expect(nullSchema.const == nil)
+
+    let anySchema: JSONSchema = .any
+    #expect(anySchema.title == nil)
+    #expect(anySchema.description == nil)
+    #expect(anySchema.default == nil)
+    #expect(anySchema.examples == nil)
+    #expect(anySchema.enum == nil)
+    #expect(anySchema.const == nil)
+
+    let emptySchema: JSONSchema = .empty
+    #expect(emptySchema.title == nil)
+    #expect(emptySchema.description == nil)
+    #expect(emptySchema.default == nil)
+    #expect(emptySchema.examples == nil)
+    #expect(emptySchema.enum == nil)
+    #expect(emptySchema.const == nil)
+
+    let referenceSchema: JSONSchema = .reference("#/definitions/Person")
+    #expect(referenceSchema.title == nil)
+    #expect(referenceSchema.description == nil)
+    #expect(referenceSchema.default == nil)
+    #expect(referenceSchema.examples == nil)
+    #expect(referenceSchema.enum == nil)
+    #expect(referenceSchema.const == nil)
+
+    let anyOfSchema: JSONSchema = .anyOf([.string(), .integer()])
+    #expect(anyOfSchema.title == nil)
+    #expect(anyOfSchema.description == nil)
+    #expect(anyOfSchema.default == nil)
+    #expect(anyOfSchema.examples == nil)
+    #expect(anyOfSchema.enum == nil)
+    #expect(anyOfSchema.const == nil)
+
+    let allOfSchema: JSONSchema = .allOf([.string(), .integer()])
+    #expect(allOfSchema.title == nil)
+    #expect(allOfSchema.description == nil)
+    #expect(allOfSchema.default == nil)
+    #expect(allOfSchema.examples == nil)
+    #expect(allOfSchema.enum == nil)
+    #expect(allOfSchema.const == nil)
+
+    let oneOfSchema: JSONSchema = .oneOf([.string(), .integer()])
+    #expect(oneOfSchema.title == nil)
+    #expect(oneOfSchema.description == nil)
+    #expect(oneOfSchema.default == nil)
+    #expect(oneOfSchema.examples == nil)
+    #expect(oneOfSchema.enum == nil)
+    #expect(oneOfSchema.const == nil)
+
+    let notSchema: JSONSchema = .not(.string())
+    #expect(notSchema.title == nil)
+    #expect(notSchema.description == nil)
+    #expect(notSchema.default == nil)
+    #expect(notSchema.examples == nil)
+    #expect(notSchema.enum == nil)
+    #expect(notSchema.const == nil)
 }

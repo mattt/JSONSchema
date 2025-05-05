@@ -250,6 +250,107 @@
     case any
 }
 
+extension JSONSchema {
+    /// The title of the schema, if present.
+    public var title: String? {
+        switch self {
+        case .object(let title, _, _, _, _, _, _, _, _),
+            .array(let title, _, _, _, _, _, _, _, _, _),
+            .string(let title, _, _, _, _, _, _, _, _, _),
+            .number(let title, _, _, _, _, _, _, _, _, _, _),
+            .integer(let title, _, _, _, _, _, _, _, _, _, _),
+            .boolean(let title, _, _):
+            return title
+        case .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// The description of the schema, if present.
+    public var description: String? {
+        switch self {
+        case .object(_, let description, _, _, _, _, _, _, _),
+            .array(_, let description, _, _, _, _, _, _, _, _),
+            .string(_, let description, _, _, _, _, _, _, _, _),
+            .number(_, let description, _, _, _, _, _, _, _, _, _),
+            .integer(_, let description, _, _, _, _, _, _, _, _, _),
+            .boolean(_, let description, _):
+            return description
+        case .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// The default value of the schema, if present.
+    public var `default`: JSONValue? {
+        switch self {
+        case .object(_, _, let `default`, _, _, _, _, _, _),
+            .array(_, _, let `default`, _, _, _, _, _, _, _),
+            .string(_, _, let `default`, _, _, _, _, _, _, _),
+            .number(_, _, let `default`, _, _, _, _, _, _, _, _),
+            .integer(_, _, let `default`, _, _, _, _, _, _, _, _),
+            .boolean(_, _, let `default`):
+            return `default`
+        case .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// The examples of the schema, if present.
+    public var examples: [JSONValue]? {
+        switch self {
+        case .object(_, _, _, let examples, _, _, _, _, _),
+            .array(_, _, _, let examples, _, _, _, _, _, _),
+            .string(_, _, _, let examples, _, _, _, _, _, _),
+            .number(_, _, _, let examples, _, _, _, _, _, _, _),
+            .integer(_, _, _, let examples, _, _, _, _, _, _, _):
+            return examples
+        case .boolean, .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// The enum values of the schema, if present.
+    public var `enum`: [JSONValue]? {
+        switch self {
+        case .object(_, _, _, _, let `enum`, _, _, _, _),
+            .array(_, _, _, _, let `enum`, _, _, _, _, _),
+            .string(_, _, _, _, let `enum`, _, _, _, _, _),
+            .number(_, _, _, _, let `enum`, _, _, _, _, _, _),
+            .integer(_, _, _, _, let `enum`, _, _, _, _, _, _):
+            return `enum`
+        case .boolean, .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+
+    /// The const value of the schema, if present.
+    public var const: JSONValue? {
+        switch self {
+        case .object(_, _, _, _, _, let const, _, _, _),
+            .array(_, _, _, _, _, let const, _, _, _, _),
+            .string(_, _, _, _, _, let const, _, _, _, _),
+            .number(_, _, _, _, _, let const, _, _, _, _, _),
+            .integer(_, _, _, _, _, let const, _, _, _, _, _):
+            return const
+        case .boolean, .null, .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
+}
+
 extension JSONSchema: Codable {
     private enum CodingKeys: String, CodingKey {
         // Any
