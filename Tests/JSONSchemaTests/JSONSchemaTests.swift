@@ -1024,3 +1024,119 @@ import Testing
     #expect(notSchema.enum == nil)
     #expect(notSchema.const == nil)
 }
+
+@Test func testTypeName() {
+    // Test object schema
+    let objectSchema: JSONSchema = .object()
+    #expect(objectSchema.typeName == "Object")
+
+    // Test array schema
+    let arraySchema: JSONSchema = .array()
+    #expect(arraySchema.typeName == "Array")
+
+    // Test string schema
+    let stringSchema: JSONSchema = .string()
+    #expect(stringSchema.typeName == "String")
+
+    // Test number schema
+    let numberSchema: JSONSchema = .number()
+    #expect(numberSchema.typeName == "Number")
+
+    // Test integer schema
+    let integerSchema: JSONSchema = .integer()
+    #expect(integerSchema.typeName == "Integer")
+
+    // Test boolean schema
+    let booleanSchema: JSONSchema = .boolean()
+    #expect(booleanSchema.typeName == "Boolean")
+
+    // Test null schema
+    let nullSchema: JSONSchema = .null
+    #expect(nullSchema.typeName == "Null")
+
+    // Test reference schema
+    let referenceSchema: JSONSchema = .reference("#/definitions/Person")
+    #expect(referenceSchema.typeName == "Reference")
+
+    // Test anyOf schema
+    let anyOfSchema: JSONSchema = .anyOf([.string(), .integer()])
+    #expect(anyOfSchema.typeName == "AnyOf")
+
+    // Test allOf schema
+    let allOfSchema: JSONSchema = .allOf([.string(), .integer()])
+    #expect(allOfSchema.typeName == "AllOf")
+
+    // Test oneOf schema
+    let oneOfSchema: JSONSchema = .oneOf([.string(), .integer()])
+    #expect(oneOfSchema.typeName == "OneOf")
+
+    // Test not schema
+    let notSchema: JSONSchema = .not(.string())
+    #expect(notSchema.typeName == "Not")
+
+    // Test empty schema
+    let emptySchema: JSONSchema = .empty
+    #expect(emptySchema.typeName == "Empty")
+
+    // Test any schema
+    let anySchema: JSONSchema = .any
+    #expect(anySchema.typeName == "Any")
+}
+
+@Test func testTypeDefault() {
+    // Test object schema
+    let objectSchema: JSONSchema = .object()
+    #expect(objectSchema.typeDefault?.objectValue?.isEmpty == true)
+
+    // Test array schema
+    let arraySchema: JSONSchema = .array()
+    #expect(arraySchema.typeDefault?.arrayValue?.isEmpty == true)
+
+    // Test string schema
+    let stringSchema: JSONSchema = .string()
+    #expect(stringSchema.typeDefault?.stringValue == "")
+
+    // Test number schema
+    let numberSchema: JSONSchema = .number()
+    #expect(numberSchema.typeDefault?.doubleValue == 0.0)
+
+    // Test integer schema
+    let integerSchema: JSONSchema = .integer()
+    #expect(integerSchema.typeDefault?.intValue == 0)
+
+    // Test boolean schema
+    let booleanSchema: JSONSchema = .boolean()
+    #expect(booleanSchema.typeDefault?.boolValue == false)
+
+    // Test null schema
+    let nullSchema: JSONSchema = .null
+    #expect(nullSchema.typeDefault?.isNull == true)
+
+    // Test reference schema
+    let referenceSchema: JSONSchema = .reference("#/definitions/Person")
+    #expect(referenceSchema.typeDefault == nil)
+
+    // Test anyOf schema
+    let anyOfSchema: JSONSchema = .anyOf([.string(), .integer()])
+    #expect(anyOfSchema.typeDefault == nil)
+
+    // Test allOf schema
+    let allOfSchema: JSONSchema = .allOf([.string(), .integer()])
+    #expect(allOfSchema.typeDefault == nil)
+
+    // Test oneOf schema
+    let oneOfSchema: JSONSchema = .oneOf([.string(), .integer()])
+    #expect(oneOfSchema.typeDefault == nil)
+
+    // Test not schema
+    let notSchema: JSONSchema = .not(.string())
+    #expect(notSchema.typeDefault == nil)
+
+    // Test empty schema
+    let emptySchema: JSONSchema = .empty
+    #expect(emptySchema.typeDefault == nil)
+
+    // Test any schema
+    let anySchema: JSONSchema = .any
+    #expect(anySchema.typeDefault == nil)
+}

@@ -349,6 +349,54 @@ extension JSONSchema {
             return nil
         }
     }
+
+    /// The name of the schema type.
+    public var typeName: String {
+        switch self {
+        case .object: return "Object"
+        case .array: return "Array"
+        case .string: return "String"
+        case .number: return "Number"
+        case .integer: return "Integer"
+        case .boolean: return "Boolean"
+        case .null: return "Null"
+        case .reference: return "Reference"
+        case .anyOf: return "AnyOf"
+        case .allOf: return "AllOf"
+        case .oneOf: return "OneOf"
+        case .not: return "Not"
+        case .empty: return "Empty"
+        case .any: return "Any"
+        @unknown default:
+            return "Unknown"
+        }
+    }
+
+    /// The default value that the schema infers from its type.
+    ///
+    /// - For objects, this property returns an empty object (`{}`).
+    /// - For arrays, this property returns an empty array (`[]`).
+    /// - For strings, this property returns an empty string (`""`).
+    /// - For numbers, this property returns `0.0`.
+    /// - For integers, this property returns `0`.
+    /// - For booleans, this property returns `false`.
+    /// - For null values, this property returns `null`.
+    /// - For references and composite schemas (anyOf, allOf, oneOf, not, empty, or any), this property returns `nil`.
+    public var typeDefault: JSONValue? {
+        switch self {
+        case .object: return .object([:])
+        case .array: return .array([])
+        case .string: return .string("")
+        case .number: return .double(0.0)
+        case .integer: return .int(0)
+        case .boolean: return .bool(false)
+        case .null: return .null
+        case .reference, .anyOf, .allOf, .oneOf, .not, .empty, .any:
+            return nil
+        @unknown default:
+            return nil
+        }
+    }
 }
 
 extension JSONSchema: Codable {
