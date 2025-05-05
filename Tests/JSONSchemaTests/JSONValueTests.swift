@@ -414,3 +414,86 @@ import Testing
     dict[.string("key")] = "value"
     #expect(dict[.string("key")] == "value")
 }
+
+@Test func testJSONValueIsCompatible() {
+    // Test object compatibility
+    let objectValue: JSONValue = .object(["key": .string("value")])
+    #expect(objectValue.isCompatible(with: .object))
+    #expect(!objectValue.isCompatible(with: .array))
+    #expect(!objectValue.isCompatible(with: .string))
+    #expect(!objectValue.isCompatible(with: .number))
+    #expect(!objectValue.isCompatible(with: .integer))
+    #expect(!objectValue.isCompatible(with: .boolean))
+    #expect(!objectValue.isCompatible(with: .null))
+
+    // Test array compatibility
+    let arrayValue: JSONValue = .array([.int(1), .string("test")])
+    #expect(!arrayValue.isCompatible(with: .object))
+    #expect(arrayValue.isCompatible(with: .array))
+    #expect(!arrayValue.isCompatible(with: .string))
+    #expect(!arrayValue.isCompatible(with: .number))
+    #expect(!arrayValue.isCompatible(with: .integer))
+    #expect(!arrayValue.isCompatible(with: .boolean))
+    #expect(!arrayValue.isCompatible(with: .null))
+
+    // Test string compatibility
+    let stringValue: JSONValue = .string("test")
+    #expect(!stringValue.isCompatible(with: .object))
+    #expect(!stringValue.isCompatible(with: .array))
+    #expect(stringValue.isCompatible(with: .string))
+    #expect(!stringValue.isCompatible(with: .number))
+    #expect(!stringValue.isCompatible(with: .integer))
+    #expect(!stringValue.isCompatible(with: .boolean))
+    #expect(!stringValue.isCompatible(with: .null))
+
+    // Test number compatibility
+    let doubleValue: JSONValue = .double(3.14)
+    #expect(!doubleValue.isCompatible(with: .object))
+    #expect(!doubleValue.isCompatible(with: .array))
+    #expect(!doubleValue.isCompatible(with: .string))
+    #expect(doubleValue.isCompatible(with: .number))
+    #expect(!doubleValue.isCompatible(with: .integer))
+    #expect(!doubleValue.isCompatible(with: .boolean))
+    #expect(!doubleValue.isCompatible(with: .null))
+
+    // Test integer compatibility
+    let intValue: JSONValue = .int(42)
+    #expect(!intValue.isCompatible(with: .object))
+    #expect(!intValue.isCompatible(with: .array))
+    #expect(!intValue.isCompatible(with: .string))
+    #expect(intValue.isCompatible(with: .number, strict: false))
+    #expect(!intValue.isCompatible(with: .number, strict: true))
+    #expect(intValue.isCompatible(with: .integer))
+    #expect(!intValue.isCompatible(with: .boolean))
+    #expect(!intValue.isCompatible(with: .null))
+
+    // Test boolean compatibility
+    let boolValue: JSONValue = .bool(true)
+    #expect(!boolValue.isCompatible(with: .object))
+    #expect(!boolValue.isCompatible(with: .array))
+    #expect(!boolValue.isCompatible(with: .string))
+    #expect(!boolValue.isCompatible(with: .number))
+    #expect(!boolValue.isCompatible(with: .integer))
+    #expect(boolValue.isCompatible(with: .boolean))
+    #expect(!boolValue.isCompatible(with: .null))
+
+    // Test null compatibility
+    let nullValue: JSONValue = .null
+    #expect(!nullValue.isCompatible(with: .object))
+    #expect(!nullValue.isCompatible(with: .array))
+    #expect(!nullValue.isCompatible(with: .string))
+    #expect(!nullValue.isCompatible(with: .number))
+    #expect(!nullValue.isCompatible(with: .integer))
+    #expect(!nullValue.isCompatible(with: .boolean))
+    #expect(nullValue.isCompatible(with: .null))
+
+    // Test composite schema types (should always return true)
+    let anyValue: JSONValue = .string("any")
+    #expect(anyValue.isCompatible(with: .reference("$ref")))
+    #expect(anyValue.isCompatible(with: .anyOf([])))
+    #expect(anyValue.isCompatible(with: .allOf([])))
+    #expect(anyValue.isCompatible(with: .oneOf([])))
+    #expect(anyValue.isCompatible(with: .not(.string)))
+    #expect(anyValue.isCompatible(with: .empty))
+    #expect(anyValue.isCompatible(with: .any))
+}
