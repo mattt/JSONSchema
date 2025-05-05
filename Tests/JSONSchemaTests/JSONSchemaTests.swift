@@ -1028,59 +1028,59 @@ import Testing
 @Test func testTypeName() {
     // Test object schema
     let objectSchema: JSONSchema = .object()
-    #expect(objectSchema.typeName == "Object")
+    #expect(objectSchema.typeName == "object")
 
     // Test array schema
     let arraySchema: JSONSchema = .array()
-    #expect(arraySchema.typeName == "Array")
+    #expect(arraySchema.typeName == "array")
 
     // Test string schema
     let stringSchema: JSONSchema = .string()
-    #expect(stringSchema.typeName == "String")
+    #expect(stringSchema.typeName == "string")
 
     // Test number schema
     let numberSchema: JSONSchema = .number()
-    #expect(numberSchema.typeName == "Number")
+    #expect(numberSchema.typeName == "number")
 
     // Test integer schema
     let integerSchema: JSONSchema = .integer()
-    #expect(integerSchema.typeName == "Integer")
+    #expect(integerSchema.typeName == "integer")
 
     // Test boolean schema
     let booleanSchema: JSONSchema = .boolean()
-    #expect(booleanSchema.typeName == "Boolean")
+    #expect(booleanSchema.typeName == "boolean")
 
     // Test null schema
     let nullSchema: JSONSchema = .null
-    #expect(nullSchema.typeName == "Null")
+    #expect(nullSchema.typeName == "null")
 
     // Test reference schema
     let referenceSchema: JSONSchema = .reference("#/definitions/Person")
-    #expect(referenceSchema.typeName == "Reference")
+    #expect(referenceSchema.typeName == "reference")
 
     // Test anyOf schema
     let anyOfSchema: JSONSchema = .anyOf([.string(), .integer()])
-    #expect(anyOfSchema.typeName == "AnyOf")
+    #expect(anyOfSchema.typeName == "anyOf")
 
     // Test allOf schema
     let allOfSchema: JSONSchema = .allOf([.string(), .integer()])
-    #expect(allOfSchema.typeName == "AllOf")
+    #expect(allOfSchema.typeName == "allOf")
 
     // Test oneOf schema
     let oneOfSchema: JSONSchema = .oneOf([.string(), .integer()])
-    #expect(oneOfSchema.typeName == "OneOf")
+    #expect(oneOfSchema.typeName == "oneOf")
 
     // Test not schema
     let notSchema: JSONSchema = .not(.string())
-    #expect(notSchema.typeName == "Not")
+    #expect(notSchema.typeName == "not")
 
     // Test empty schema
     let emptySchema: JSONSchema = .empty
-    #expect(emptySchema.typeName == "Empty")
+    #expect(emptySchema.typeName == "empty")
 
     // Test any schema
     let anySchema: JSONSchema = .any
-    #expect(anySchema.typeName == "Any")
+    #expect(anySchema.typeName == "any")
 }
 
 @Test func testTypeDefault() {

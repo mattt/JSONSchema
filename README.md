@@ -127,6 +127,47 @@ let schema: JSONSchema = .object(
 )
 ```
 
+### Schema Properties
+
+Access schema metadata and type information through convenience properties:
+
+```swift
+import JSONSchema
+
+let schema: JSONSchema = .object(
+    title: "Person",
+    description: "A human being",
+    properties: [
+        "name": .string,
+        "age": .integer
+    ]
+)
+
+// Access metadata
+print(schema.typeName) // "object"
+print(schema.title) // "Person"
+print(schema.description) // "A human being"
+```
+
+### JSON Value Compatibility
+
+The library provides methods to check compatibility between JSON values and schemas:
+
+```swift
+import JSONSchema
+
+// Check if a JSON value is compatible with a schema
+let value: JSONValue = 42
+let schema: JSONSchema = .integer(minimum: 0)
+let isCompatible = value.isCompatible(with: schema) // true
+
+// Strict vs non-strict compatibility
+let numberValue: JSONValue = 42
+let numberSchema: JSONSchema = .number()
+let strictCompatible = numberValue.isCompatible(with: numberSchema) // false
+let nonStrictCompatible = numberValue.isCompatible(with: numberSchema, strict: false) // true
+```
+
 ### Schema Serialization
 
 ```swift
@@ -135,7 +176,7 @@ import JSONSchema
 // Create a schema
 let schema: JSONSchema = .object(
     title: "Person",
-    description: "A person schema",
+    description: "A human being",
     properties: [
         "name": .string(),
         "age": .integer(minimum: 0)
