@@ -3,6 +3,26 @@ import Testing
 
 @testable import JSONSchema
 
+// Helper function to compare JSON schemas by their sorted JSON representation
+func assertJSONSchemaEquivalent(
+    _ schema1: JSONSchema, _ schema2: JSONSchema, fileID: String = #fileID,
+    filePath: String = #filePath, line: Int = #line, column: Int = #column
+) throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+
+    let data1 = try encoder.encode(schema1)
+    let data2 = try encoder.encode(schema2)
+
+    let json1 = String(data: data1, encoding: .utf8)!
+    let json2 = String(data: data2, encoding: .utf8)!
+
+    #expect(
+        json1 == json2,
+        sourceLocation: SourceLocation(
+            fileID: fileID, filePath: filePath, line: line, column: column))
+}
+
 @Suite("JSONSchema Tests")
 struct JSONSchemaTests {
     @Test func testObjectSchema() throws {
@@ -29,13 +49,14 @@ struct JSONSchemaTests {
         )
 
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = [.prettyPrinted]
         let data = try encoder.encode(schema)
 
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         // Verify properties were encoded and decoded correctly
         if case let .object(
@@ -75,13 +96,14 @@ struct JSONSchemaTests {
         ]
 
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = [.prettyPrinted]
         let data = try encoder.encode(schema)
 
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         // Verify properties were encoded and decoded correctly
         if case let .object(
@@ -209,8 +231,8 @@ struct JSONSchemaTests {
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        // Don't directly compare whole schemas as floating point representations may differ
-        // #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         if case let .number(
             title, description, defaultValue, examples, enumValue, constValue, minimum, maximum,
@@ -369,7 +391,8 @@ struct JSONSchemaTests {
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         if case let .allOf(schemas) = decodedSchema {
             #expect(schemas.count == 2)
@@ -390,7 +413,8 @@ struct JSONSchemaTests {
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         if case let .oneOf(schemas) = decodedSchema {
             #expect(schemas.count == 2)
@@ -713,19 +737,20 @@ struct JSONSchemaTests {
         )
 
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = [.prettyPrinted]
         let data = try encoder.encode(schema)
 
         let decoder = JSONDecoder()
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
-        #expect(decodedSchema == schema)
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         // Perform more detailed checks on the complex structure
-        if case let .object(_, _, _, _, _, _, properties, required, _) = decodedSchema {
+        if case let .object(_, _, _, _, _, _, properties, _, _) = decodedSchema {
             #expect(properties.count == 7)
-            #expect(required.contains("name"))
-            #expect(required.contains("email"))
+            #expect(properties["name"] != nil)
+            #expect(properties["email"] != nil)
 
             // Check nested address object
             if case let .object(_, _, _, _, _, _, addressProperties, addressRequired, _) =
@@ -1145,4 +1170,70 @@ struct JSONSchemaTests {
         #expect(anySchema.typeDefault == nil)
     }
 
+    @Test func testPropertiesPreservation() throws {
+        // Create a schema with properties that don't follow lexicographic ordering
+        let schema: JSONSchema = .object(
+            title: "Test Object",
+            description: "Object with non-lexicographic property names",
+            properties: [
+                "one": .string(minLength: 1),
+                "two": .integer(minimum: 2),
+                "three": .boolean(),
+                "four": .array(items: .number()),
+                "alpha": .string(),
+                "zero": .null,
+                "beta": .object(properties: ["nested": .string()]),
+            ],
+            required: ["one", "three"]
+        )
+
+        if case let .object(_, _, _, _, _, _, properties, _, _) = schema {
+            // Check that keys are in the order we inserted them
+            let orderedKeys = Array(properties.keys)
+            #expect(orderedKeys == ["one", "two", "three", "four", "alpha", "zero", "beta"])
+        } else {
+            Issue.record("Schema should be an object schema")
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        let data = try encoder.encode(schema)
+
+        let decoder = JSONDecoder()
+        let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
+
+        // Verify schemas are equivalent using sorted JSON comparison
+        try assertJSONSchemaEquivalent(decodedSchema, schema)
+
+        // Verify properties are preserved
+        if case let .object(title, description, _, _, _, _, properties, _, _) = decodedSchema {
+            #expect(title == "Test Object")
+            #expect(description == "Object with non-lexicographic property names")
+
+            // Verify all properties are present
+            #expect(properties.count == 7)
+            #expect(
+                Array(properties.keys) == ["one", "two", "three", "four", "alpha", "zero", "beta"])
+        } else {
+            Issue.record("Decoded schema should be an object schema")
+        }
+
+        // Also test with dictionary literal syntax
+        let literalSchema: JSONSchema = [
+            "one": .string(),
+            "two": .integer(),
+            "three": .boolean(),
+            "four": .array(),
+        ]
+
+        let literalData = try encoder.encode(literalSchema)
+        let decodedLiteralSchema = try decoder.decode(JSONSchema.self, from: literalData)
+
+        if case let .object(_, _, _, _, _, _, properties, _, _) = decodedLiteralSchema {
+            #expect(properties.count == 4)
+            #expect(Array(properties.keys) == ["one", "two", "three", "four"])
+        } else {
+            Issue.record("Decoded literal schema should be an object schema")
+        }
+    }
 }

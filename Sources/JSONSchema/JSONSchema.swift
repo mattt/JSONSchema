@@ -1,3 +1,6 @@
+import Foundation
+import OrderedCollections
+
 /// A type that represents a JSON Schema definition.
 ///
 /// Use JSONSchema to create, manipulate, and encode/decode JSON Schema documents.
@@ -41,7 +44,7 @@
         enum: [JSONValue]? = nil,
         const: JSONValue? = nil,
         /*  */
-        properties: [String: JSONSchema] = [:],
+        properties: OrderedDictionary<String, JSONSchema> = [:],
         required: [String] = [],
         additionalProperties: AdditionalProperties? = nil
     )
@@ -677,7 +680,8 @@ extension JSONSchema: Codable {
         switch type {
         case "object":
             let properties =
-                try container.decodeIfPresent([String: JSONSchema].self, forKey: .properties) ?? [:]
+                try container.decodeIfPresent(
+                    OrderedDictionary<String, JSONSchema>.self, forKey: .properties) ?? [:]
             let required = try container.decodeIfPresent([String].self, forKey: .required) ?? []
             let additionalProperties = try container.decodeIfPresent(
                 AdditionalProperties.self, forKey: .additionalProperties)
