@@ -747,10 +747,10 @@ struct JSONSchemaTests {
         try assertJSONSchemaEquivalent(decodedSchema, schema)
 
         // Perform more detailed checks on the complex structure
-        if case let .object(_, _, _, _, _, _, properties, _, _) = decodedSchema {
+        if case let .object(_, _, _, _, _, _, properties, required, _) = decodedSchema {
             #expect(properties.count == 7)
-            #expect(properties["name"] != nil)
-            #expect(properties["email"] != nil)
+            #expect(required.contains("name"))
+            #expect(required.contains("email"))
 
             // Check nested address object
             if case let .object(_, _, _, _, _, _, addressProperties, addressRequired, _) =
