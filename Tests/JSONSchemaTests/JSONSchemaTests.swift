@@ -1170,7 +1170,8 @@ struct JSONSchemaTests {
         #expect(anySchema.typeDefault == nil)
     }
 
-    @Test func testPropertiesPreservation() throws {
+    @Test("Properties preservation")
+    func testPropertiesPreservation() throws {
         // Create a schema with properties that don't follow lexicographic ordering
         let schema: JSONSchema = .object(
             title: "Test Object",
@@ -1719,5 +1720,227 @@ struct JSONKeyOrderingTests {
         #expect(order?[0] == "short")
         #expect(order?[1] == veryLongKey)
         #expect(order?[2] == "another")
+    }
+
+    @Test("JSON Schema round-trip")
+    func testJSONSchemaRoundTrip() throws {
+        // Array of test schemas covering all types and features
+        let testSchemas: [JSONSchema] = [
+            // Basic types
+            .null,
+            .any,
+            .empty,
+            .boolean(),
+            .boolean(title: "Is Active", description: "User active status", default: true),
+
+            // String schemas with various properties
+            .string(),
+            .string(
+                title: "Username",
+                description: "User's username",
+                default: "guest",
+                examples: ["alice", "bob", "charlie"],
+                enum: ["admin", "user", "guest"],
+                const: "fixed_value",
+                minLength: 3,
+                maxLength: 50,
+                pattern: "^[a-zA-Z0-9_]+$",
+                format: .email
+            ),
+
+            // Number schemas
+            .number(),
+            .number(
+                title: "Temperature",
+                description: "Temperature reading",
+                default: 20.5,
+                examples: [15, 25, 30],
+                enum: [0, 50, 100],
+                const: 37.5,
+                minimum: -273.15,
+                maximum: 1000,
+                exclusiveMinimum: -273.15,
+                exclusiveMaximum: 1000,
+                multipleOf: 0.5
+            ),
+
+            // Integer schemas
+            .integer(),
+            .integer(
+                title: "Age",
+                description: "Person's age",
+                default: 30,
+                examples: [18, 25, 65],
+                enum: [18, 21, 65],
+                const: 42,
+                minimum: 0,
+                maximum: 150,
+                exclusiveMinimum: 0,
+                exclusiveMaximum: 150,
+                multipleOf: 1
+            ),
+
+            // Array schemas
+            .array(),
+            .array(
+                title: "Tags",
+                description: "List of tags",
+                default: ["default", "tag"],
+                examples: [["tag1", "tag2"], ["tagA", "tagB"]],
+                enum: [["option1"], ["option2", "option3"]],
+                const: ["const1", "const2"],
+                items: .string(minLength: 1),
+                minItems: 0,
+                maxItems: 10,
+                uniqueItems: true
+            ),
+
+            // Object schemas
+            .object(),
+            .object(
+                title: "User",
+                description: "User object",
+                default: ["id": 1, "name": "Default User"],
+                examples: [["id": 2, "name": "Example User"]],
+                enum: [["type": "standard"], ["type": "premium"]],
+                const: ["type": "fixed"],
+                properties: [
+                    "id": .integer(minimum: 1),
+                    "name": .string(minLength: 1),
+                    "email": .string(format: .email),
+                    "tags": .array(items: .string()),
+                ],
+                required: ["id", "name"],
+                additionalProperties: .boolean(false)
+            ),
+
+            // Object with schema additional properties
+            .object(
+                properties: ["known": .string()],
+                additionalProperties: .schema(.number(minimum: 0))
+            ),
+
+            // Reference schema
+            .reference("#/definitions/User"),
+            .reference("#/components/schemas/Address"),
+
+            // Composite schemas
+            .anyOf([.string(), .number(), .boolean()]),
+            .allOf([
+                .object(properties: ["name": .string()]),
+                .object(properties: ["age": .integer()]),
+            ]),
+            .oneOf([
+                .object(properties: ["type": .string(const: "cat"), "meow": .boolean()]),
+                .object(properties: ["type": .string(const: "dog"), "bark": .boolean()]),
+            ]),
+            .not(.string(pattern: "^[0-9]+$")),
+
+            // String with all formats
+            .string(format: .dateTime),
+            .string(format: .date),
+            .string(format: .time),
+            .string(format: .duration),
+            .string(format: .email),
+            .string(format: .idnEmail),
+            .string(format: .hostname),
+            .string(format: .idnHostname),
+            .string(format: .ipv4),
+            .string(format: .ipv6),
+            .string(format: .uri),
+            .string(format: .uriReference),
+            .string(format: .iriReference),
+            .string(format: .uriTemplate),
+            .string(format: .jsonPointer),
+            .string(format: .relativeJsonPointer),
+            .string(format: .regex),
+            .string(format: .uuid),
+            .string(format: .custom("custom-format")),
+
+            // Edge cases
+            .object(properties: [:]),  // Empty properties
+            .array(items: .array(items: .array(items: .string()))),  // Triple nested arrays
+            .anyOf([]),  // Empty anyOf (though this might be invalid in real use)
+            .allOf([.any]),  // Single item allOf
+            .oneOf([.empty]),  // Single item oneOf
+        ]
+
+        // Test each schema
+        for (index, originalSchema) in testSchemas.enumerated() {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+
+            // Encode to JSON
+            let encodedData = try encoder.encode(originalSchema)
+
+            // Extract property order if it's an object schema
+            var propertyOrder: [String]? = nil
+            if case .object(_, _, _, _, _, _, let properties, _, _) = originalSchema {
+                propertyOrder = Array(properties.keys)
+            }
+
+            // Decode back with property order if available
+            let decoder = JSONDecoder()
+            if let propertyOrder = propertyOrder {
+                decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = propertyOrder
+            }
+            let decodedSchema = try decoder.decode(JSONSchema.self, from: encodedData)
+
+            // Compare using our helper function
+            try assertJSONSchemaEquivalent(
+                decodedSchema,
+                originalSchema,
+                fileID: #fileID,
+                filePath: #filePath,
+                line: #line,
+                column: #column
+            )
+
+            // Also verify direct equality where applicable
+            // Skip direct equality check for composite schemas since order doesn't matter
+            switch originalSchema {
+            case .anyOf, .allOf, .oneOf:
+                // Skip direct equality check for composite schemas
+                break
+            default:
+                #expect(
+                    decodedSchema == originalSchema,
+                    "Schema at index \(index) failed round-trip equality test"
+                )
+            }
+
+            // Double round-trip to ensure stability
+            let reEncodedData = try encoder.encode(decodedSchema)
+            let reDecodedSchema = try decoder.decode(JSONSchema.self, from: reEncodedData)
+
+            try assertJSONSchemaEquivalent(
+                reDecodedSchema,
+                decodedSchema,
+                fileID: #fileID,
+                filePath: #filePath,
+                line: #line,
+                column: #column
+            )
+
+            // Skip direct equality check for composite schemas in double round-trip too
+            switch decodedSchema {
+            case .anyOf, .allOf, .oneOf:
+                // Skip direct equality check for composite schemas
+                break
+            default:
+                #expect(
+                    reDecodedSchema == decodedSchema,
+                    "Schema at index \(index) failed double round-trip equality test"
+                )
+            }
+
+            // Verify JSON strings are identical after sorting
+            let json1 = String(data: encodedData, encoding: .utf8)!
+            let json2 = String(data: reEncodedData, encoding: .utf8)!
+            #expect(
+                json1 == json2,
+                "Schema at index \(index) produced different JSON on re-encoding"
+            )
+        }
     }
 }
