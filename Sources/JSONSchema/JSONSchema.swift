@@ -461,7 +461,10 @@ extension JSONSchema: Codable {
             try encodeIfPresent(`enum`, forKey: .enum, into: &container)
             try encodeIfPresent(const, forKey: .const, into: &container)
 
-            try encodeIfNotEmpty(properties, forKey: .properties, into: &container)
+            // Custom encoding for properties to preserve order but encode as object
+            if !properties.isEmpty {
+                try container.encode(PropertyDictionary(properties), forKey: .properties)
+            }
             try encodeIfNotEmpty(required, forKey: .required, into: &container)
 
             if let additionalProperties = additionalProperties {
@@ -679,9 +682,9 @@ extension JSONSchema: Codable {
 
         switch type {
         case "object":
-            let properties =
-                try container.decodeIfPresent(
-                    OrderedDictionary<String, JSONSchema>.self, forKey: .properties) ?? [:]
+            let propertiesWrapper = try container.decodeIfPresent(
+                PropertyDictionary.self, forKey: .properties)
+            let properties = propertiesWrapper?.orderedDictionary ?? [:]
             let required = try container.decodeIfPresent([String].self, forKey: .required) ?? []
             let additionalProperties = try container.decodeIfPresent(
                 AdditionalProperties.self, forKey: .additionalProperties)
@@ -858,6 +861,51 @@ extension JSONSchema: ExpressibleByBooleanLiteral {
 extension JSONSchema: ExpressibleByNilLiteral {
     public init(nilLiteral: ()) {
         self = .empty
+    }
+}
+
+// MARK: - Property Dictionary Wrapper
+
+/// A wrapper around OrderedDictionary that encodes as a JSON object while preserving key order.
+private struct PropertyDictionary: Codable {
+    let orderedDictionary: OrderedDictionary<String, JSONSchema>
+
+    init(_ orderedDictionary: OrderedDictionary<String, JSONSchema>) {
+        self.orderedDictionary = orderedDictionary
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: DynamicKey.self)
+
+        for (key, value) in orderedDictionary {
+            try container.encode(value, forKey: DynamicKey(stringValue: key)!)
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DynamicKey.self)
+        var result = OrderedDictionary<String, JSONSchema>()
+
+        // Preserve order by using container.allKeys
+        for key in container.allKeys {
+            let value = try container.decode(JSONSchema.self, forKey: key)
+            result[key.stringValue] = value
+        }
+
+        self.orderedDictionary = result
+    }
+
+    private struct DynamicKey: CodingKey {
+        let stringValue: String
+        let intValue: Int? = nil
+
+        init?(stringValue: String) {
+            self.stringValue = stringValue
+        }
+
+        init?(intValue: Int) {
+            return nil
+        }
     }
 }
 
