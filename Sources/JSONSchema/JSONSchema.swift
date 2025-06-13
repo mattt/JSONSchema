@@ -254,6 +254,22 @@ import OrderedCollections
 }
 
 extension JSONSchema {
+    /// The user info key for specifying property order during JSON decoding.
+    ///
+    /// When decoding JSON Schema objects, the standard `JSONDecoder` does not preserve
+    /// the order of properties from the original JSON. To maintain property order, you
+    /// can provide an array of property names in the decoder's `userInfo` dictionary
+    /// using this key.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let decoder = JSONDecoder()
+    /// decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = ["name", "age", "email"]
+    /// let schema = try decoder.decode(JSONSchema.self, from: jsonData)
+    /// ```
+    public static let propertyOrderUserInfoKey = CodingUserInfoKey(
+        rawValue: "JSONSchemaPropertyOrder")!
+
     /// The title of the schema, if present.
     public var title: String? {
         switch self {
@@ -886,10 +902,27 @@ private struct PropertyDictionary: Codable {
         let container = try decoder.container(keyedBy: DynamicKey.self)
         var result = OrderedDictionary<String, JSONSchema>()
 
-        // Preserve order by using container.allKeys
-        for key in container.allKeys {
-            let value = try container.decode(JSONSchema.self, forKey: key)
-            result[key.stringValue] = value
+        // Check if property order was provided in userInfo
+        if let keyOrder = decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] as? [String] {
+            // Use the provided order
+            for key in keyOrder {
+                guard let codingKey = DynamicKey(stringValue: key) else { continue }
+                if container.contains(codingKey) {
+                    let value = try container.decode(JSONSchema.self, forKey: codingKey)
+                    result[key] = value
+                }
+            }
+            // Add any keys that weren't in the provided order
+            for key in container.allKeys where !keyOrder.contains(key.stringValue) {
+                let value = try container.decode(JSONSchema.self, forKey: key)
+                result[key.stringValue] = value
+            }
+        } else {
+            // Fallback to default behavior - order not preserved
+            for key in container.allKeys {
+                let value = try container.decode(JSONSchema.self, forKey: key)
+                result[key.stringValue] = value
+            }
         }
 
         self.orderedDictionary = result

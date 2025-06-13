@@ -1196,10 +1196,13 @@ struct JSONSchemaTests {
         }
 
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
         let data = try encoder.encode(schema)
 
+        // Extract property order from the encoded JSON for preservation
+        let expectedPropertyOrder = ["one", "two", "three", "four", "alpha", "zero", "beta"]
+
         let decoder = JSONDecoder()
+        decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = expectedPropertyOrder
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
         // Verify schemas are equivalent using sorted JSON comparison
@@ -1227,7 +1230,12 @@ struct JSONSchemaTests {
         ]
 
         let literalData = try encoder.encode(literalSchema)
-        let decodedLiteralSchema = try decoder.decode(JSONSchema.self, from: literalData)
+
+        let literalDecoder = JSONDecoder()
+        literalDecoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = [
+            "one", "two", "three", "four",
+        ]
+        let decodedLiteralSchema = try literalDecoder.decode(JSONSchema.self, from: literalData)
 
         if case let .object(_, _, _, _, _, _, properties, _, _) = decodedLiteralSchema {
             #expect(properties.count == 4)
@@ -1235,5 +1243,131 @@ struct JSONSchemaTests {
         } else {
             Issue.record("Decoded literal schema should be an object schema")
         }
+    }
+
+    @Test("Properties encode as JSON object, not array")
+    func testPropertiesEncodeAsObject() throws {
+        let schema: JSONSchema = .object(
+            properties: [
+                "name": .string(),
+                "age": .integer(),
+                "email": .string(),
+            ]
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(schema)
+        let json = String(data: data, encoding: .utf8)!
+
+        // Verify that properties are encoded as a JSON object, not an array
+        #expect(json.contains("\"properties\" : {"))
+        #expect(!json.contains("\"properties\" : ["))
+
+        // Verify it contains the expected structure
+        #expect(json.contains("\"name\" : {"))
+        #expect(json.contains("\"age\" : {"))
+        #expect(json.contains("\"email\" : {"))
+    }
+
+    @Test("Round-trip encoding/decoding preserves all properties")
+    func testRoundTripPreservesProperties() throws {
+        let originalSchema: JSONSchema = .object(
+            title: "Person",
+            description: "A person object",
+            properties: [
+                "name": .string(minLength: 1),
+                "age": .integer(minimum: 0, maximum: 120),
+                "email": .string(format: .email),
+                "address": .object(
+                    properties: [
+                        "street": .string(),
+                        "city": .string(),
+                    ]
+                ),
+            ],
+            required: ["name", "email"]
+        )
+
+        // Encode
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(originalSchema)
+
+        // Decode
+        let decoder = JSONDecoder()
+        let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
+
+        // Verify structure is preserved
+        guard
+            case let .object(title, description, _, _, _, _, properties, required, _) =
+                decodedSchema
+        else {
+            Issue.record("Decoded schema should be an object")
+            return
+        }
+
+        #expect(title == "Person")
+        #expect(description == "A person object")
+        #expect(properties.count == 4)
+        #expect(Set(properties.keys) == Set(["name", "age", "email", "address"]))
+        #expect(Set(required) == Set(["name", "email"]))
+
+        // Verify nested object properties
+        guard case let .object(_, _, _, _, _, _, addressProps, _, _) = properties["address"] else {
+            Issue.record("Address should be an object schema")
+            return
+        }
+
+        #expect(addressProps.count == 2)
+        #expect(Set(addressProps.keys) == Set(["street", "city"]))
+    }
+
+    @Test("Can decode JSON schema from external source")
+    func testDecodeExternalJSONSchema() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "title": "User",
+              "properties": {
+                "id": {"type": "integer"},
+                "username": {"type": "string", "minLength": 3},
+                "profile": {
+                  "type": "object",
+                  "properties": {
+                    "firstName": {"type": "string"},
+                    "lastName": {"type": "string"}
+                  },
+                  "required": ["firstName", "lastName"]
+                }
+              },
+              "required": ["id", "username"]
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let schema = try JSONDecoder().decode(JSONSchema.self, from: data)
+
+        guard case let .object(title, _, _, _, _, _, properties, required, _) = schema else {
+            Issue.record("Should decode as object schema")
+            return
+        }
+
+        #expect(title == "User")
+        #expect(properties.count == 3)
+        #expect(Set(properties.keys) == Set(["id", "username", "profile"]))
+        #expect(Set(required) == Set(["id", "username"]))
+
+        // Verify nested object
+        guard
+            case let .object(_, _, _, _, _, _, profileProps, profileRequired, _) = properties[
+                "profile"]
+        else {
+            Issue.record("Profile should be an object schema")
+            return
+        }
+
+        #expect(profileProps.count == 2)
+        #expect(Set(profileProps.keys) == Set(["firstName", "lastName"]))
+        #expect(Set(profileRequired) == Set(["firstName", "lastName"]))
     }
 }
