@@ -1196,10 +1196,13 @@ struct JSONSchemaTests {
         }
 
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
         let data = try encoder.encode(schema)
 
+        // Extract property order from the encoded JSON for preservation
+        let expectedPropertyOrder = ["one", "two", "three", "four", "alpha", "zero", "beta"]
+
         let decoder = JSONDecoder()
+        decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = expectedPropertyOrder
         let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
 
         // Verify schemas are equivalent using sorted JSON comparison
@@ -1227,7 +1230,12 @@ struct JSONSchemaTests {
         ]
 
         let literalData = try encoder.encode(literalSchema)
-        let decodedLiteralSchema = try decoder.decode(JSONSchema.self, from: literalData)
+
+        let literalDecoder = JSONDecoder()
+        literalDecoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = [
+            "one", "two", "three", "four",
+        ]
+        let decodedLiteralSchema = try literalDecoder.decode(JSONSchema.self, from: literalData)
 
         if case let .object(_, _, _, _, _, _, properties, _, _) = decodedLiteralSchema {
             #expect(properties.count == 4)
@@ -1235,5 +1243,481 @@ struct JSONSchemaTests {
         } else {
             Issue.record("Decoded literal schema should be an object schema")
         }
+    }
+
+    @Test("Properties encode as JSON object, not array")
+    func testPropertiesEncodeAsObject() throws {
+        let schema: JSONSchema = .object(
+            properties: [
+                "name": .string(),
+                "age": .integer(),
+                "email": .string(),
+            ]
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(schema)
+        let json = String(data: data, encoding: .utf8)!
+
+        // Verify that properties are encoded as a JSON object, not an array
+        #expect(json.contains("\"properties\" : {"))
+        #expect(!json.contains("\"properties\" : ["))
+
+        // Verify it contains the expected structure
+        #expect(json.contains("\"name\" : {"))
+        #expect(json.contains("\"age\" : {"))
+        #expect(json.contains("\"email\" : {"))
+    }
+
+    @Test("Round-trip encoding/decoding preserves all properties")
+    func testRoundTripPreservesProperties() throws {
+        let originalSchema: JSONSchema = .object(
+            title: "Person",
+            description: "A person object",
+            properties: [
+                "name": .string(minLength: 1),
+                "age": .integer(minimum: 0, maximum: 120),
+                "email": .string(format: .email),
+                "address": .object(
+                    properties: [
+                        "street": .string(),
+                        "city": .string(),
+                    ]
+                ),
+            ],
+            required: ["name", "email"]
+        )
+
+        // Encode
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(originalSchema)
+
+        // Decode
+        let decoder = JSONDecoder()
+        let decodedSchema = try decoder.decode(JSONSchema.self, from: data)
+
+        // Verify structure is preserved
+        guard
+            case let .object(title, description, _, _, _, _, properties, required, _) =
+                decodedSchema
+        else {
+            Issue.record("Decoded schema should be an object")
+            return
+        }
+
+        #expect(title == "Person")
+        #expect(description == "A person object")
+        #expect(properties.count == 4)
+        #expect(Set(properties.keys) == Set(["name", "age", "email", "address"]))
+        #expect(Set(required) == Set(["name", "email"]))
+
+        // Verify nested object properties
+        guard case let .object(_, _, _, _, _, _, addressProps, _, _) = properties["address"] else {
+            Issue.record("Address should be an object schema")
+            return
+        }
+
+        #expect(addressProps.count == 2)
+        #expect(Set(addressProps.keys) == Set(["street", "city"]))
+    }
+
+    @Test("Can decode JSON schema from external source")
+    func testDecodeExternalJSONSchema() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "title": "User",
+              "properties": {
+                "id": {"type": "integer"},
+                "username": {"type": "string", "minLength": 3},
+                "profile": {
+                  "type": "object",
+                  "properties": {
+                    "firstName": {"type": "string"},
+                    "lastName": {"type": "string"}
+                  },
+                  "required": ["firstName", "lastName"]
+                }
+              },
+              "required": ["id", "username"]
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let schema = try JSONDecoder().decode(JSONSchema.self, from: data)
+
+        guard case let .object(title, _, _, _, _, _, properties, required, _) = schema else {
+            Issue.record("Should decode as object schema")
+            return
+        }
+
+        #expect(title == "User")
+        #expect(properties.count == 3)
+        #expect(Set(properties.keys) == Set(["id", "username", "profile"]))
+        #expect(Set(required) == Set(["id", "username"]))
+
+        // Verify nested object
+        guard
+            case let .object(_, _, _, _, _, _, profileProps, profileRequired, _) = properties[
+                "profile"]
+        else {
+            Issue.record("Profile should be an object schema")
+            return
+        }
+
+        #expect(profileProps.count == 2)
+        #expect(Set(profileProps.keys) == Set(["firstName", "lastName"]))
+        #expect(Set(profileRequired) == Set(["firstName", "lastName"]))
+    }
+
+}
+
+@Suite("JSON Key Ordering Tests")
+struct JSONKeyOrderingTests {
+    @Test("Extract property order from simple JSON object")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderSimple() throws {
+        let jsonString = """
+            {
+              "name": "John Doe",
+              "age": 30,
+              "email": "john@example.com",
+              "active": true
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data)
+
+        #expect(order == ["name", "age", "email", "active"])
+    }
+
+    @Test("Extract property order with path parameter")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderWithPath() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "properties": {
+                "firstName": {"type": "string"},
+                "lastName": {"type": "string"},
+                "age": {"type": "integer"},
+                "address": {"type": "object"}
+              },
+              "required": ["firstName", "lastName"]
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data, at: ["properties"])
+
+        #expect(order == ["firstName", "lastName", "age", "address"])
+    }
+
+    @Test("Extract schema property order")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractSchemaPropertyOrder() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "properties": {
+                "firstName": {"type": "string"},
+                "lastName": {"type": "string"},
+                "age": {"type": "integer"},
+                "address": {"type": "object"}
+              },
+              "required": ["firstName", "lastName"]
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractSchemaPropertyOrder(from: data)
+
+        #expect(order == ["firstName", "lastName", "age", "address"])
+    }
+
+    @Test("Extract property order from nested path")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderNestedPath() throws {
+        let jsonString = """
+            {
+              "definitions": {
+                "person": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "birthDate": {"type": "string", "format": "date"},
+                    "nationality": {"type": "string"}
+                  }
+                }
+              },
+              "properties": {
+                "people": {"type": "array"}
+              }
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+
+        // Test extracting from root level
+        let rootOrder = JSONSchema.extractPropertyOrder(from: data)
+        #expect(rootOrder == ["definitions", "properties"])
+
+        // Test extracting from properties at root
+        let propertiesOrder = JSONSchema.extractPropertyOrder(from: data, at: ["properties"])
+        #expect(propertiesOrder == ["people"])
+
+        // Test extracting from nested path
+        let nestedOrder = JSONSchema.extractPropertyOrder(
+            from: data, at: ["definitions", "person", "properties"])
+        #expect(nestedOrder == ["name", "birthDate", "nationality"])
+    }
+
+    @Test("Extract property order with various JSON formatting")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderVariousFormatting() throws {
+        // Compact JSON (no spaces)
+        let compactJSON = """
+            {"first":"value1","second":"value2","third":"value3"}
+            """
+
+        let compactData = compactJSON.data(using: .utf8)!
+        let compactOrder = JSONSchema.extractPropertyOrder(from: compactData)
+        #expect(compactOrder == ["first", "second", "third"])
+
+        // JSON with extra whitespace
+        let spacedJSON = """
+            {
+              "alpha"    :    "value1"  ,
+              "beta"     :    "value2"  ,
+              "gamma"    :    "value3"
+            }
+            """
+
+        let spacedData = spacedJSON.data(using: .utf8)!
+        let spacedOrder = JSONSchema.extractPropertyOrder(from: spacedData)
+        #expect(spacedOrder == ["alpha", "beta", "gamma"])
+
+        // JSON with mixed formatting
+        let mixedJSON = """
+            {
+            "one":1,"two": 2,
+              "three"  :  3  ,
+                "four"    :    4
+            }
+            """
+
+        let mixedData = mixedJSON.data(using: .utf8)!
+        let mixedOrder = JSONSchema.extractPropertyOrder(from: mixedData)
+        #expect(mixedOrder == ["one", "two", "three", "four"])
+    }
+
+    @Test("Extract property order handles edge cases")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderEdgeCases() throws {
+        // Empty object
+        let emptyJSON = "{}"
+        let emptyData = emptyJSON.data(using: .utf8)!
+        let emptyOrder = JSONSchema.extractPropertyOrder(from: emptyData)
+        #expect(emptyOrder == [])
+
+        // Invalid JSON
+        let invalidJSON = "not valid json"
+        let invalidData = invalidJSON.data(using: .utf8)!
+        let invalidOrder = JSONSchema.extractPropertyOrder(from: invalidData)
+        #expect(invalidOrder == nil)
+
+        // Array instead of object
+        let arrayJSON = "[1, 2, 3]"
+        let arrayData = arrayJSON.data(using: .utf8)!
+        let arrayOrder = JSONSchema.extractPropertyOrder(from: arrayData)
+        #expect(arrayOrder == nil)
+
+        // Path that doesn't exist
+        let jsonString = """
+            {"properties": {"name": "value"}}
+            """
+        let data = jsonString.data(using: .utf8)!
+        let missingPathOrder = JSONSchema.extractPropertyOrder(from: data, at: ["nonexistent"])
+        #expect(missingPathOrder == nil)
+
+        // Invalid UTF-8 data
+        let invalidUTF8Data = Data([0xFF, 0xFE, 0xFD])
+        let invalidUTF8Order = JSONSchema.extractPropertyOrder(from: invalidUTF8Data)
+        #expect(invalidUTF8Order == nil)
+    }
+
+    @Test("Extract property order with special characters in keys")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderSpecialCharacters() throws {
+        let jsonString = """
+            {
+              "normal-key": "value1",
+              "key_with_underscore": "value2",
+              "key.with.dots": "value3",
+              "key-with-dashes": "value4",
+              "keyWithCamelCase": "value5",
+              "key with spaces": "value6",
+              "key@with#special$chars": "value7",
+              "数字": "value8",
+              "émoji🎉": "value9"
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data)
+
+        #expect(
+            order == [
+                "normal-key",
+                "key_with_underscore",
+                "key.with.dots",
+                "key-with-dashes",
+                "keyWithCamelCase",
+                "key with spaces",
+                "key@with#special$chars",
+                "数字",
+                "émoji🎉",
+            ])
+    }
+
+    @Test("Extract property order from complex nested structure")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderComplexNested() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "title": "Complex Schema",
+              "properties": {
+                "id": {"type": "string"},
+                "metadata": {
+                  "type": "object",
+                  "properties": {
+                    "created": {"type": "string"},
+                    "updated": {"type": "string"},
+                    "version": {"type": "integer"}
+                  }
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "values": {"type": "array"},
+                    "summary": {"type": "string"}
+                  }
+                }
+              },
+              "required": ["id"]
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+
+        // Extract from root
+        let rootOrder = JSONSchema.extractPropertyOrder(from: data)
+        #expect(rootOrder == ["type", "title", "properties", "required"])
+
+        // Extract from properties
+        let propertiesOrder = JSONSchema.extractPropertyOrder(from: data, at: ["properties"])
+        #expect(propertiesOrder == ["id", "metadata", "data"])
+    }
+
+    @Test("Extract property order with escaped characters")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderEscapedCharacters() throws {
+        let jsonString = """
+            {
+              "normal": "value",
+              "with\\"quote": "value",
+              "with\\nNewline": "value",
+              "with\\tTab": "value",
+              "with\\\\backslash": "value"
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data)
+
+        // Note: The extracted keys will have the escape sequences as they appear in the JSON
+        #expect(
+            order == [
+                "normal", "with\\\"quote", "with\\nNewline", "with\\tTab", "with\\\\backslash",
+            ])
+    }
+
+    @Test("Extract property order preserves duplicate handling")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderDuplicateKeys() throws {
+        // JSON with duplicate keys (technically invalid but parseable)
+        let jsonString = """
+            {
+              "key1": "value1",
+              "key2": "value2",
+              "key1": "value3",
+              "key3": "value4"
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data)
+
+        // Should extract all occurrences in order
+        #expect(order == ["key1", "key2", "key1", "key3"])
+    }
+
+    @Test("Extract property order integration with decoder")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderIntegrationWithDecoder() throws {
+        let jsonString = """
+            {
+              "type": "object",
+              "properties": {
+                "zebra": {"type": "string"},
+                "apple": {"type": "string"},
+                "middle": {"type": "string"},
+                "banana": {"type": "string"}
+              }
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+
+        // Extract property order
+        let propertyOrder = JSONSchema.extractSchemaPropertyOrder(from: data)
+        #expect(propertyOrder == ["zebra", "apple", "middle", "banana"])
+
+        // Use it with decoder
+        let decoder = JSONDecoder()
+        decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = propertyOrder
+        let schema = try decoder.decode(JSONSchema.self, from: data)
+
+        // Verify the order is preserved
+        if case let .object(_, _, _, _, _, _, properties, _, _) = schema {
+            let keys = Array(properties.keys)
+            #expect(keys == ["zebra", "apple", "middle", "banana"])
+        } else {
+            Issue.record("Expected object schema")
+        }
+    }
+
+    @Test("Extract property order with very long keys")
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    func testExtractPropertyOrderLongKeys() throws {
+        let veryLongKey = String(repeating: "a", count: 1000)
+        let jsonString = """
+            {
+              "short": "value",
+              "\(veryLongKey)": "value",
+              "another": "value"
+            }
+            """
+
+        let data = jsonString.data(using: .utf8)!
+        let order = JSONSchema.extractPropertyOrder(from: data)
+
+        #expect(order?.count == 3)
+        #expect(order?[0] == "short")
+        #expect(order?[1] == veryLongKey)
+        #expect(order?[2] == "another")
     }
 }
