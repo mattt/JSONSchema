@@ -1,6 +1,10 @@
 import Foundation
 import OrderedCollections
 
+#if canImport(RegexBuilder)
+    import RegexBuilder
+#endif
+
 /// A type that represents a JSON Schema definition.
 ///
 /// Use JSONSchema to create, manipulate, and encode/decode JSON Schema documents.
@@ -269,6 +273,95 @@ extension JSONSchema {
     /// ```
     public static let propertyOrderUserInfoKey = CodingUserInfoKey(
         rawValue: "JSONSchemaPropertyOrder")!
+
+    /// Extracts the order of property keys from a JSON Schema object's "properties" field.
+    ///
+    /// This method is specifically designed for JSON Schema objects and automatically
+    /// extracts property keys from the "properties" field in the order they appear.
+    ///
+    /// - Parameter jsonData: The JSON Schema data to extract property order from.
+    /// - Returns: An array of property keys in the order they appear in the JSON Schema's properties field, or nil if extraction fails.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let jsonString = """
+    /// {
+    ///   "type": "object",
+    ///   "properties": {
+    ///     "name": {"type": "string"},
+    ///     "age": {"type": "integer"},
+    ///     "email": {"type": "string"}
+    ///   }
+    /// }
+    /// """
+    ///
+    /// if let data = jsonString.data(using: .utf8),
+    ///    let keyOrder = JSONSchema.extractSchemaPropertyOrder(from: data) {
+    ///     let decoder = JSONDecoder()
+    ///     decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = keyOrder
+    ///     let schema = try decoder.decode(JSONSchema.self, from: data)
+    /// }
+    /// ```
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    public static func extractSchemaPropertyOrder(from jsonData: Data) -> [String]? {
+        return extractPropertyOrder(from: jsonData, at: ["properties"])
+    }
+
+    /// Extracts the order of property keys from a JSON object at a specified keypath.
+    ///
+    /// This general-purpose method can extract property key order from any JSON object
+    /// by navigating through the provided keypath.
+    ///
+    /// - Parameters:
+    ///   - jsonData: The JSON data to extract keys from.
+    ///   - keypath: An array of string keys representing the path to the target object.
+    ///              An empty array extracts keys from the root object.
+    /// - Returns: An array of property keys in the order they appear in the JSON, or nil if extraction fails.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let jsonString = """
+    /// {
+    ///   "definitions": {
+    ///     "person": {
+    ///       "name": "John",
+    ///       "age": 30,
+    ///       "email": "john@example.com"
+    ///     }
+    ///   }
+    /// }
+    /// """
+    ///
+    /// if let data = jsonString.data(using: .utf8),
+    ///    let keyOrder = JSONSchema.extractPropertyOrder(from: data, at: ["definitions", "person"]) {
+    ///     // keyOrder will be ["name", "age", "email"]
+    /// }
+    /// ```
+    @available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+    public static func extractPropertyOrder(from jsonData: Data, at keypath: [String] = [])
+        -> [String]?
+    {
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else { return nil }
+
+        // First validate it's valid JSON by trying to decode
+        do {
+            let decoded = try JSONDecoder().decode(JSONValue.self, from: jsonData)
+
+            // Verify root is an object
+            guard case .object = decoded else { return nil }
+
+            // Use the parser to extract keys
+            let parser = JSONKeyOrderParser(json: jsonString)
+
+            if keypath.isEmpty {
+                return parser.extractRootKeys()
+            } else {
+                return parser.extractKeys(at: keypath)
+            }
+        } catch {
+            return nil
+        }
+    }
 
     /// The title of the schema, if present.
     public var title: String? {
@@ -1161,5 +1254,280 @@ extension AdditionalProperties: ExpressibleByBooleanLiteral {
 extension AdditionalProperties: ExpressibleByDictionaryLiteral {
     public init(dictionaryLiteral elements: (String, JSONSchema)...) {
         self = .schema(.object(properties: .init(uniqueKeysWithValues: elements)))
+    }
+}
+
+// MARK: -
+
+/// A simple JSON parser that extracts property keys in order.
+@available(macOS 13.0, iOS 16.0, watchOS 9.0, tvOS 16.0, visionOS 1.0, *)
+private struct JSONKeyOrderParser {
+    private let json: String
+
+    init(json: String) {
+        self.json = json
+    }
+
+    /// Extract keys from the root object
+    func extractRootKeys() -> [String]? {
+        return extractKeysFromObject(json)
+    }
+
+    /// Extract keys from an object at a specific keypath
+    func extractKeys(at keypath: [String]) -> [String]? {
+        guard !keypath.isEmpty else {
+            return extractRootKeys()
+        }
+
+        // Navigate through the keypath to find the target object
+        var currentObject = json
+
+        for key in keypath {
+            guard let nextObject = findObjectAtPath(key, in: currentObject) else {
+                return nil
+            }
+            currentObject = nextObject
+        }
+
+        return extractKeysFromObject(currentObject)
+    }
+
+    /// Find an object value for a given key within a JSON string
+    private func findObjectAtPath(_ targetKey: String, in jsonString: String) -> String? {
+        var index = jsonString.startIndex
+        var inString = false
+        var escapeNext = false
+        var braceDepth = 0
+
+        // Skip to opening brace
+        while index < jsonString.endIndex {
+            if jsonString[index] == "{" {
+                braceDepth = 1
+                index = jsonString.index(after: index)
+                break
+            }
+            index = jsonString.index(after: index)
+        }
+
+        guard braceDepth == 1 else { return nil }
+
+        // Look for the key at root level
+        while index < jsonString.endIndex && braceDepth > 0 {
+            let char = jsonString[index]
+
+            if escapeNext {
+                escapeNext = false
+            } else if inString {
+                if char == "\\" {
+                    escapeNext = true
+                } else if char == "\"" {
+                    inString = false
+                }
+            } else {
+                switch char {
+                case "\"":
+                    if braceDepth == 1 {
+                        // Potential key at root level
+                        if let (key, keyEnd) = extractString(startingAt: index, in: jsonString) {
+                            if key == targetKey {
+                                // Found the key, now extract its value
+                                if let objectStart = skipToValue(from: keyEnd, in: jsonString) {
+                                    return extractObject(startingAt: objectStart, in: jsonString)
+                                }
+                            }
+                            index = keyEnd
+                            continue
+                        }
+                    }
+                    inString = true
+
+                case "{":
+                    braceDepth += 1
+
+                case "}":
+                    braceDepth -= 1
+
+                default:
+                    break
+                }
+            }
+
+            index = jsonString.index(after: index)
+        }
+
+        return nil
+    }
+
+    /// Extract all top-level keys from a JSON object string
+    private func extractKeysFromObject(_ objectJson: String) -> [String]? {
+        var keys: [String] = []
+        var index = objectJson.startIndex
+        var inString = false
+        var escapeNext = false
+        var braceDepth = 0
+
+        // Skip to opening brace
+        while index < objectJson.endIndex {
+            if objectJson[index] == "{" {
+                braceDepth = 1
+                index = objectJson.index(after: index)
+                break
+            }
+            index = objectJson.index(after: index)
+        }
+
+        guard braceDepth == 1 else { return nil }
+
+        while index < objectJson.endIndex && braceDepth > 0 {
+            let char = objectJson[index]
+
+            if escapeNext {
+                escapeNext = false
+            } else if inString {
+                if char == "\\" {
+                    escapeNext = true
+                } else if char == "\"" {
+                    inString = false
+                }
+            } else {
+                switch char {
+                case "\"":
+                    if braceDepth == 1 {
+                        // Extract key at top level
+                        if let (key, keyEnd) = extractString(startingAt: index, in: objectJson) {
+                            // Verify it's followed by a colon
+                            var colonIndex = keyEnd
+                            while colonIndex < objectJson.endIndex
+                                && objectJson[colonIndex].isWhitespace
+                            {
+                                colonIndex = objectJson.index(after: colonIndex)
+                            }
+
+                            if colonIndex < objectJson.endIndex && objectJson[colonIndex] == ":" {
+                                keys.append(key)
+                            }
+
+                            index = keyEnd
+                            continue
+                        }
+                    }
+                    inString = true
+
+                case "{":
+                    braceDepth += 1
+
+                case "}":
+                    braceDepth -= 1
+
+                default:
+                    break
+                }
+            }
+
+            index = objectJson.index(after: index)
+        }
+
+        return braceDepth == 0 ? keys : nil
+    }
+
+    /// Extract a quoted string starting at the given index
+    private func extractString(startingAt startIndex: String.Index, in str: String? = nil) -> (
+        String, String.Index
+    )? {
+        let targetString = str ?? json
+        guard startIndex < targetString.endIndex && targetString[startIndex] == "\"" else {
+            return nil
+        }
+
+        var index = targetString.index(after: startIndex)
+        var result = ""
+        var escapeNext = false
+
+        while index < targetString.endIndex {
+            let char = targetString[index]
+
+            if escapeNext {
+                result.append("\\")
+                result.append(char)
+                escapeNext = false
+            } else if char == "\\" {
+                escapeNext = true
+            } else if char == "\"" {
+                return (result, targetString.index(after: index))
+            } else {
+                result.append(char)
+            }
+
+            index = targetString.index(after: index)
+        }
+
+        return nil
+    }
+
+    /// Skip whitespace and colon to get to the value
+    private func skipToValue(from index: String.Index, in jsonString: String) -> String.Index? {
+        var current = index
+
+        // Skip whitespace
+        while current < jsonString.endIndex && jsonString[current].isWhitespace {
+            current = jsonString.index(after: current)
+        }
+
+        // Expect colon
+        guard current < jsonString.endIndex && jsonString[current] == ":" else {
+            return nil
+        }
+
+        current = jsonString.index(after: current)
+
+        // Skip whitespace after colon
+        while current < jsonString.endIndex && jsonString[current].isWhitespace {
+            current = jsonString.index(after: current)
+        }
+
+        return current < jsonString.endIndex ? current : nil
+    }
+
+    /// Extract a complete object starting at the given index
+    private func extractObject(startingAt startIndex: String.Index, in jsonString: String)
+        -> String?
+    {
+        guard startIndex < jsonString.endIndex && jsonString[startIndex] == "{" else {
+            return nil
+        }
+
+        var index = jsonString.index(after: startIndex)
+        var braceDepth = 1
+        var inString = false
+        var escapeNext = false
+
+        while index < jsonString.endIndex && braceDepth > 0 {
+            let char = jsonString[index]
+
+            if escapeNext {
+                escapeNext = false
+            } else if inString {
+                if char == "\\" {
+                    escapeNext = true
+                } else if char == "\"" {
+                    inString = false
+                }
+            } else {
+                switch char {
+                case "\"":
+                    inString = true
+                case "{":
+                    braceDepth += 1
+                case "}":
+                    braceDepth -= 1
+                default:
+                    break
+                }
+            }
+
+            index = jsonString.index(after: index)
+        }
+
+        return braceDepth == 0 ? String(jsonString[startIndex..<index]) : nil
     }
 }

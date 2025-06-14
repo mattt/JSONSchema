@@ -3,15 +3,15 @@
 A Swift library for working with JSON Schema definitions —
 especially for declaring schemas for AI tool use.
 
-This library implements core features of the 
-[JSON Schema](https://json-schema.org/) standard, 
+This library implements core features of the
+[JSON Schema](https://json-schema.org/) standard,
 targeting the **draft-2020-12** version.
 
 🙅‍♀️ This library specifically **does not** support the following features:
 
 - Document validation
 - Reference resolution
-- Conditional validation keywords, like 
+- Conditional validation keywords, like
   `dependentRequired`, `dependentSchemas`, and `if`/`then`/`else`
 - Custom vocabularies and meta-schemas
 
@@ -195,16 +195,93 @@ let decoder = JSONDecoder()
 let decodedSchema = try decoder.decode(JSONSchema.self, from: jsonData)
 ```
 
+### Preserving Property Order
+
+According to [the JSON spec](https://www.ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf) (emphasis added):
+
+> ## 6. Objects
+> [...] The JSON syntax does not impose any restrictions on the strings used as names,
+> does not require that name strings be unique,
+> and **does not assign any significance to the ordering of name/value pairs**. [...]
+
+And yet,
+JSON Schema documents often _do_ assign significance to the order of properties.
+In such cases, it may be desireable to preserve this ordering.
+For example,
+ensuring that an auto-generated form for a `createEvent` tool
+lists `start` before `end`.
+For this reason,
+the associated value for `JSONSchema.object` properties use
+[the `OrderedDictionary` type from `apple/swift-collections`](https://github.com/apple/swift-collections)
+
+By default,
+`JSONDecoder` doesn't guarantee stable ordering of keys.
+However, this package provides the following affordances
+to decode `JSONSchema` objects with properties
+in order they appear in the JSON string:
+
+- A static `extractSchemaPropertyOrder` method
+  that extracts property order from the top-level `"properties"` field
+  of a JSON Schema object.
+- A static `extractPropertyOrder` method
+  that extracts property order from any JSON object at a specified keypath.
+- A static `propertyOrderUserInfoKey` constant
+  that you can pass to `JSONDecoder`
+  (determined with either extraction method or some other means)
+  to guide the ordering of JSON Schema object properties.
+
+```swift
+let json = """
+{
+  "type": "object",
+  "properties": {
+    "firstName": {"type": "string"},
+    "lastName": {"type": "string"},
+    "age": {"type": "integer"},
+    "email": {"type": "string", "format": "email"}
+  }
+}
+""".data(using: .utf8)!
+
+// Extract property order from a JSON Schema object's "properties" field
+if let propertyOrder = JSONSchema.extractSchemaPropertyOrder(from: jsonData) {
+    // Configure decoder to preserve order
+    let decoder = JSONDecoder()
+    decoder.userInfo[JSONSchema.propertyOrderUserInfoKey] = propertyOrder
+
+    // Decode with preserved property order
+    let schema = try decoder.decode(JSONSchema.self, from: data)
+
+    // Properties will maintain their original order: `firstName`, `lastName`, `age`, `email`
+}
+
+// Or extract from a nested object using a keypath
+let nestedJSONData = """
+{
+  "definitions": {
+    "person": {
+      "firstName": "John",
+      "lastName": "Doe"
+    }
+  }
+}
+""".data(using: .utf8)!
+
+let keyOrder = JSONSchema.extractPropertyOrder(from: nestedJSONData, 
+                                               at: ["definitions", "person"]) 
+// keyOrder will be ["firstName", "lastName"]
+```
+
 ## Motivation
 
-There are a few other packages out there for working with JSON Schema, 
+There are a few other packages out there for working with JSON Schema,
 but they did more than I needed.
 
-This library focuses solely on defining and serializing JSON Schema values 
+This library focuses solely on defining and serializing JSON Schema values
 with a clean, ergonomic API. <br/>
 _That's it_.
 
-The [implementation](/Sources/JSONSchema/) is deliberately minimal: 
+The [implementation](/Sources/JSONSchema/) is deliberately minimal:
 two files, ~1,000 lines of code total.
 At its core is one big `JSONSchema` enumeration
 with associated values for most of the JSON Schema keywords you might want.
