@@ -281,8 +281,7 @@ This library focuses solely on defining and serializing JSON Schema values
 with a clean, ergonomic API. <br/>
 _That's it_.
 
-The [implementation](/Sources/JSONSchema/) is deliberately minimal:
-two files, ~1,000 lines of code total.
+The [implementation](/Sources/JSONSchema/) is deliberately minimal.
 At its core is one big `JSONSchema` enumeration
 with associated values for most of the JSON Schema keywords you might want.
 No result builders, property wrappers, macros, or dynamic member lookup —
