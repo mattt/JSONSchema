@@ -29,7 +29,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/loopwork-ai/JSONSchema.git", from: "1.3.0")
+    .package(url: "https://github.com/loopwork/JSONSchema.git", from: "1.3.0")
 ]
 ```
 
@@ -267,8 +267,8 @@ let nestedJSONData = """
 }
 """.data(using: .utf8)!
 
-let keyOrder = JSONSchema.extractPropertyOrder(from: nestedJSONData, 
-                                               at: ["definitions", "person"]) 
+let keyOrder = JSONSchema.extractPropertyOrder(from: nestedJSONData,
+                                               at: ["definitions", "person"])
 // keyOrder will be ["firstName", "lastName"]
 ```
 
