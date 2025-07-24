@@ -29,7 +29,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/loopwork/JSONSchema.git", from: "1.3.0")
+    .package(url: "https://github.com/mattt/JSONSchema.git", from: "1.3.0")
 ]
 ```
 
@@ -289,4 +289,5 @@ just old-school Swift with choice conformance to `ExpressibleBy___Literal` 💅
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0.
+This project is available under the MIT license.
+See the LICENSE file for more info.
