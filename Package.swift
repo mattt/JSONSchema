@@ -12,7 +12,7 @@ let package = Package(
             targets: ["JSONSchema"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0")
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
