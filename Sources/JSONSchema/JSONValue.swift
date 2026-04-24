@@ -1,6 +1,12 @@
+#if canImport(FoundationEssentials)
+import struct FoundationEssentials.Data
+import class FoundationEssentials.JSONDecoder
+import class FoundationEssentials.JSONEncoder
+#else
 import struct Foundation.Data
 import class Foundation.JSONDecoder
 import class Foundation.JSONEncoder
+#endif
 
 /// A representation of a JSON value.
 ///
