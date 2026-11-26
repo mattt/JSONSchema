@@ -254,6 +254,12 @@ import OrderedCollections
     /// A schema that accepts any valid JSON value.
     ///
     /// This is equivalent to the boolean value `true` in JSON Schema.
+    ///
+    /// Decoding produces this case for a schema object
+    /// that has keywords but no `type`,
+    /// such as `{"enum": ["ok", 2, 1.5, true, null]}` or `{"enum": [true]}`.
+    /// The decoder does not keep the other keywords,
+    /// so the schema encodes as `true` and its `enum` constraint is lost.
     case any
 }
 
@@ -734,6 +740,15 @@ extension JSONSchema: Codable {
         }
     }
 
+    /// Creates a schema by decoding from the given decoder.
+    ///
+    /// The decoder keeps an `enum` constraint only when the schema
+    /// has a `type` of `object`, `array`, `string`, `number`, or `integer`.
+    /// It drops `enum` from a schema with a `type` of `boolean` or `null`.
+    /// A schema with keywords but no `type` decodes as ``JSONSchema/any``,
+    /// which encodes as `true`.
+    /// For example, `{"enum": ["ok", 2, 1.5, true, null]}`
+    /// and `{"enum": [true]}` both lose their constraints.
     public init(from decoder: Decoder) throws {
         let singleValueContainer = try decoder.singleValueContainer()
         if let bool = try? singleValueContainer.decode(Bool.self) {
