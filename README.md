@@ -195,6 +195,15 @@ let decoder = JSONDecoder()
 let decodedSchema = try decoder.decode(JSONSchema.self, from: jsonData)
 ```
 
+> [!NOTE]
+> Decoding keeps an `enum` constraint only for schemas
+> with a `type` of `object`, `array`, `string`, `number`, or `integer`.
+> It drops `enum` from `boolean` and `null` schemas.
+> A schema with no `type`,
+> such as `{"enum": ["ok", 2, 1.5, true, null]}` or `{"enum": [true]}`,
+> decodes as `.any` and encodes as `true`,
+> so its constraint is lost.
+
 ### Preserving Property Order
 
 According to [the JSON spec](https://www.ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf) (emphasis added):

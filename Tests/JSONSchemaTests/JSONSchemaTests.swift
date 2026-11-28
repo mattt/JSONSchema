@@ -481,6 +481,37 @@ struct JSONSchemaTests {
         }
     }
 
+    // These tests pin the current behavior.
+    // A future major version may keep these `enum` constraints
+    // instead of decoding the schemas as `.any`.
+    @Test(arguments: [
+        #"{"enum":["ok",2,1.5,true,null]}"#,
+        #"{"enum":[true]}"#,
+    ])
+    func testUntypedEnumDecodesAsAny(json: String) throws {
+        let decoder = JSONDecoder()
+        let schema = try decoder.decode(JSONSchema.self, from: Data(json.utf8))
+        #expect(schema == .any)
+
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(schema)
+        #expect(String(data: data, encoding: .utf8) == "true")
+    }
+
+    @Test func testTypedBooleanEnumDropsConstraint() throws {
+        let json = #"{"type":"boolean","enum":[true]}"#
+        let decoder = JSONDecoder()
+        let schema = try decoder.decode(JSONSchema.self, from: Data(json.utf8))
+        #expect(schema == .boolean())
+    }
+
+    @Test func testTypedStringEnumKeepsConstraint() throws {
+        let json = #"{"type":"string","enum":["a","b"]}"#
+        let decoder = JSONDecoder()
+        let schema = try decoder.decode(JSONSchema.self, from: Data(json.utf8))
+        #expect(schema == .string(enum: ["a", "b"]))
+    }
+
     @Test func testStringFormatEncoding() throws {
         // Test each format
         let formats: [StringFormat] = [
